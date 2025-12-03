@@ -6,23 +6,23 @@
 
 ## ✨ 功能特性
 
-*   **去中心化存储**：所有检修记录的核心数据（如飞机号、工卡号、工作描述、签名等）均存储在区块链上。
+*   **去中心化存储**：所有检修记录的核心数据（如飞机号、工作描述、签名、航材消耗等）均存储在区块链上。
 *   **数据不可篡改**：利用区块链特性，一旦记录上链，任何人无法修改或删除。
+*   **自动哈希索引**：系统自动为每条记录生成唯一的 **Hash ID** (作为工作单号)，确保记录的唯一性和可验证性。
 *   **多维度查询**：
-    *   支持通过 **记录编号 (Hash)** 精确查询。
-    *   支持通过 **飞机注册号** 查询该飞机的历史检修记录。
-    *   支持通过 **工卡号** 查询特定任务的执行记录。
+    *   **按工作单号 (Hash)**：精确查询单条记录详情。
+    *   **按飞机注册号**：查询该飞机的历史检修时间轴。
+    *   **按机械师**：查询特定机械师的工作记录。
+*   **动态数据录入**：支持动态添加消耗件、工具、测试数据和更换件信息。
 *   **可视化界面**：提供直观的 Web 界面，包含侧边栏导航、时间轴展示和详细信息查看。
-*   **角色分离**：
-    *   **访客/监管**：可查询和验证记录。
-    *   **机械师**：可录入新的检修记录（需后端授权）。
 
 ## 🛠️ 技术栈
 
 *   **区块链**: Solidity, Hardhat, Ethers.js v6
 *   **后端**: Node.js, Express.js
 *   **前端**: Vue 3, Vite, Element Plus
-*   **开发环境**: Windows/Linux/Mac, Node.js v18+ (推荐 v20)
+*   **脚本**: PowerShell (用于一键启动/停止)
+*   **开发环境**: Windows (推荐), Node.js v18+
 
 ## 📂 项目结构
 
@@ -38,128 +38,113 @@ aviation-maintenance-system/
 │   ├── src/            # 前端源码
 │   └── vite.config.js  # Vite 配置
 ├── hardhat.config.js   # Hardhat 配置文件
+├── start_dev.ps1       # [新增] 一键启动脚本 (PowerShell)
+├── stop_dev.ps1        # [新增] 一键停止脚本 (PowerShell)
+├── start_dev.bat       # [新增] 一键启动脚本 (CMD/双击运行)
+├── stop_dev.bat        # [新增] 一键停止脚本 (CMD/双击运行)
 └── README.md           # 项目说明文档
 ```
 
-## 🚀 部署与运行指南
+## 🚀 部署与运行指南 (自动化)
 
-请按照以下步骤在本地环境启动项目。
+本项目提供了 Windows PowerShell 自动化脚本，可一键完成环境启动、合约部署和配置更新。
 
 ### 1. 环境准备
 
 确保已安装 [Node.js](https://nodejs.org/) (建议 v20.x) 和 Git。
+确保你的终端是 PowerShell。
 
-克隆项目到本地：
+### 2. 首次安装依赖
+
+首次运行前，请执行以下命令安装所有模块依赖：
+
 ```bash
-git clone <your-repo-url>
-cd aviation-maintenance-system
-```
-
-### 2. 安装依赖
-
-我们需要分别为根目录（Hardhat）、后端和前端安装依赖。
-
-**根目录 (Hardhat):**
-```bash
+# 根目录依赖
 npm install
-```
 
-**后端 (Backend):**
-```bash
+# 后端依赖
 cd backend
 npm install
 cd ..
-```
 
-**前端 (Frontend):**
-```bash
+# 前端依赖
 cd frontend
 npm install
 cd ..
 ```
 
-### 3. 启动本地区块链网络
+### 3. 一键启动 (推荐)
 
-打开第 1 个终端窗口，运行 Hardhat 本地节点：
+你可以选择以下任意一种方式启动：
 
-```bash
-npx hardhat node
-```
-> **注意**：请保持此终端窗口一直开启。启动后你会看到一系列生成的测试账户（Account #0, #1...）和私钥。
-
-### 4. 部署智能合约
-
-打开第 2 个终端窗口，部署合约到本地网络：
-
-```bash
-npx hardhat run scripts/deploy.js --network localhost
+**方式 A: 使用 PowerShell (推荐开发人员)**
+```powershell
+.\start_dev.ps1
 ```
 
-**关键步骤**：
-部署成功后，终端会输出类似如下信息：
-```
-AviationMaintenance deployed to: 0x5FbDB2315678afecb367f032d93F642f64180aa3
-```
-请**复制**这个合约地址。
+**方式 B: 使用 CMD / 双击运行 (推荐普通用户)**
+直接双击根目录下的 `start_dev.bat` 文件。
 
-### 5. 配置后端
+**脚本会自动执行以下操作：**
+1.  启动 Hardhat 本地节点。
+2.  部署智能合约到本地网络。
+3.  **自动更新** `backend/config.js` 中的合约地址。
+4.  启动后端服务 (API)。
+5.  启动前端服务 (Vite)。
 
-打开文件 `backend/config.js`，将 `CONTRACT_ADDRESS` 的值修改为你刚刚复制的地址：
+启动完成后，脚本会保持运行。你可以直接访问：
+*   **前端页面**: [http://localhost:5173](http://localhost:5173)
+*   **后端 API**: [http://localhost:3000](http://localhost:3000)
 
-```javascript
-// backend/config.js
-const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3"; // <--- 替换这里
-// ...
-```
+### 4. 一键停止
 
-### 6. 启动后端服务
+要停止所有服务（包括后台运行的 Node 进程），请运行：
 
-在第 2 个终端窗口中（或者新开一个），进入 `backend` 目录并启动服务：
+*   **PowerShell**: `.\stop_dev.ps1`
+*   **CMD / 双击**: 双击 `stop_dev.bat` 
+> **注意：这会顺便关掉所有cmd窗口！！！**
+
+### 5. 注入测试数据 (可选)
+
+项目包含一个种子脚本，用于向区块链预填充测试数据（如轮胎更换、故障排查记录等）。
+
+**使用方法：**
+
+1.  确保系统已启动（执行完步骤 3）。
+2.  打开一个新的终端窗口。
+3.  运行以下命令：
 
 ```bash
 cd backend
-node index.js
-```
-*后端服务默认运行在 http://localhost:3000*
-
-*(可选) 注入测试数据：*
-如果你想先有一些初始数据，可以运行种子脚本：
-```bash
 node seed.js
 ```
 
-### 7. 启动前端界面
+脚本运行完成后，你可以在前端页面通过搜索飞机号（如 `B-1234`, `B-5678`）来查看这些记录。
 
-打开第 3 个终端窗口，进入 `frontend` 目录并启动：
+---
 
-```bash
-cd frontend
-npm run dev
-```
-*前端服务默认运行在 http://localhost:5173*
+## 🛠️ 手动启动模式 (备用)
 
-### 8. 开始使用
+如果脚本无法运行，你可以手动分步启动：
 
-打开浏览器访问 `http://localhost:5173`。
+1.  **启动节点**: `npx hardhat node`
+2.  **部署合约**: `npx hardhat run scripts/deploy.js --network localhost`
+3.  **更新配置**: 复制部署地址，更新 `backend/config.js`。
+4.  **启动后端**: `cd backend && node index.js`
+5.  **启动前端**: `cd frontend && npm run dev`
 
-*   **查询信息**：输入飞机号（如 `B-1234`）或工卡号进行查询。
-*   **录入信息**：切换到“录入信息”页面，填写表单并提交上链。
+---
 
 ## ❓ 常见问题 (FAQ)
 
-**Q: 提交记录时报错 `Error: missing value for component recorder`？**
-A: 这是由于 Ethers.js v6 对结构体参数的严格检查。请确保后端代码已更新，手动注入了 `recorder` 和 `timestamp` 的占位符值。
-
-**Q: 前端查询不到刚才提交的记录？**
-A: 请检查后端终端是否有报错。如果使用了 `seed.js`，请确保种子脚本里的合约地址也更新了。另外，确保 Hardhat 节点（第 1 个终端）没有被关闭。
+**Q: 脚本提示 "禁止运行脚本"？**
+A: 请以管理员身份打开 PowerShell，运行 `Set-ExecutionPolicy RemoteSigned` 解除限制。
 
 **Q: 如何重置整个系统？**
-A: 
-1. 关闭所有终端。
-2. 重新运行 `npx hardhat node`（这会重置区块链状态）。
-3. 重新运行 `npx hardhat run scripts/deploy.js ...`（获取新地址）。
-4. 更新 `backend/config.js` 中的新地址。
-5. 重启后端和前端。
+A: 运行 `.\stop_dev.ps1` 停止服务，然后再次运行 `.\start_dev.ps1`。每次重启都会重置本地区块链状态。
+
+**Q: 提交记录时报错？**
+A: 请检查后端日志。系统现在使用**托管钱包**模式，后端会自动处理签名，无需前端连接 MetaMask。
 
 ## 📄 License
 
