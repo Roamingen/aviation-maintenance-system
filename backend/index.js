@@ -68,6 +68,24 @@ app.get('/api/jobcard/:jobCardNo', async (req, res) => {
     }
 });
 
+// 3.6 查询：根据机械师(工作者)获取所有 Record ID
+app.get('/api/mechanic/:mechanic', async (req, res) => {
+    try {
+        const { mechanic } = req.params;
+        const recordIds = await contract.getRecordIdsByMechanic(mechanic);
+        
+        const records = await Promise.all(recordIds.map(async (id) => {
+            const r = await contract.getRecordById(id);
+            return convertBigIntToString(r);
+        }));
+
+        res.json({ success: true, data: records });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // 4. 写入：添加检修记录
 app.post('/api/record', async (req, res) => {
     try {
@@ -75,15 +93,42 @@ app.post('/api/record', async (req, res) => {
         
         // 生成 Record ID (Hash)
         // 使用 ethers.id (keccak256) 生成
-        const uniqueString = `${recordData.jobCardNo}-${Date.now()}-${Math.random()}`;
-        const recordId = ethers.id(uniqueString);
+        // 这里的 jobCardNo 已经不再是用户输入的工卡号，而是我们即将生成的唯一标识
+        // 为了生成唯一标识，我们使用 飞机号 + 时间戳 + 随机数
+        const uniqueString = `${recordData.aircraftRegNo}-${Date.now()}-${Math.random()}`;
+        const hashId = ethers.id(uniqueString);
         
-        // 将生成的 ID 注入数据
-        recordData.recordId = recordId;
+        // 将生成的 Hash 注入数据
+        // 1. recordId 使用 Hash
+        recordData.recordId = hashId;
+        // 2. jobCardNo 也使用 Hash (作为唯一工作单号)
+        recordData.jobCardNo = hashId;
 
         // 补充合约结构体所需的占位符字段 (ethers.js 编码需要，虽然合约会覆盖)
         recordData.recorder = "0x0000000000000000000000000000000000000000";
         recordData.timestamp = 0;
+
+        // 确保可选结构体存在，防止 ethers.js 报错
+        if (!recordData.usedParts) recordData.usedParts = [];
+        if (!recordData.usedTools) recordData.usedTools = [];
+        if (!recordData.testMeasureData) recordData.testMeasureData = [];
+        if (!recordData.replaceInfo) recordData.replaceInfo = [];
+        if (!recordData.faultInfo) recordData.faultInfo = { fimCode: "", faultDescription: "" };
+        
+        // 确保 signatures 存在
+        if (!recordData.signatures) {
+            recordData.signatures = { performedBy: "", performTime: 0, inspectedBy: "", riiBy: "", releaseBy: "" };
+        } else {
+            // 确保 signatures 内部字段存在
+            const s = recordData.signatures;
+            recordData.signatures = {
+                performedBy: s.performedBy || "",
+                performTime: s.performTime || 0,
+                inspectedBy: s.inspectedBy || "",
+                riiBy: s.riiBy || "",
+                releaseBy: s.releaseBy || ""
+            };
+        }
 
         // 调用合约写入函数
         const tx = await contract.addRecord(recordData);
@@ -93,7 +138,8 @@ app.post('/api/record', async (req, res) => {
         res.json({ 
             success: true, 
             txHash: receipt.hash,
-            recordId: recordId
+            recordId: hashId,
+            jobCardNo: hashId // 返回生成的工卡号(Hash)
         });
     } catch (error) {
         console.error("Transaction failed:", error);

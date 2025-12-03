@@ -4,13 +4,13 @@ pragma solidity ^0.8.0;
 contract AviationMaintenance {
     // ================= 结构体定义 =================
 
-    struct PartToolList {
+    struct PartInfo {
         string partNumber; // 件号
         string serialNumber; // 序号
-        string toolNumber; // 计量工具编号
     }
 
     struct TestMeasureData {
+        string testItemName; // 实验项目名称
         string measuredValues; // 实测值
         bool isPass; // 是否合格
     }
@@ -51,11 +51,12 @@ contract AviationMaintenance {
         string workDescription; // 8. 工作内容描述
         string referenceDocument; // 9. 依据文件
         // 嵌套结构体
-        PartToolList partToolList;
-        TestMeasureData testMeasureData;
+        PartInfo[] usedParts;
+        string[] usedTools;
+        TestMeasureData[] testMeasureData;
         FaultInfo faultInfo;
         Signatures signatures;
-        ReplaceInfo replaceInfo;
+        ReplaceInfo[] replaceInfo;
         address recorder; // 记录人(区块链地址)
         uint256 timestamp; // 上链时间
     }
@@ -75,6 +76,9 @@ contract AviationMaintenance {
 
     // 索引: 工卡号 => 记录ID列表
     mapping(string => string[]) private jobCardRecords;
+
+    // 索引: 机械师(工作者) => 记录ID列表
+    mapping(string => string[]) private mechanicRecords;
 
     // 记录是否存在
     mapping(string => bool) public recordExists;
@@ -119,13 +123,40 @@ contract AviationMaintenance {
     function addRecord(MaintenanceRecord memory _record) public onlyAuthorized {
         require(!recordExists[_record.recordId], "Record ID already exists");
 
-        records[_record.recordId] = _record;
-        records[_record.recordId].recorder = msg.sender;
-        records[_record.recordId].timestamp = block.timestamp;
+        MaintenanceRecord storage newRecord = records[_record.recordId];
+
+        newRecord.recordId = _record.recordId;
+        newRecord.aircraftRegNo = _record.aircraftRegNo;
+        newRecord.aircraftType = _record.aircraftType;
+        newRecord.jobCardNo = _record.jobCardNo;
+        newRecord.revision = _record.revision;
+        newRecord.ataCode = _record.ataCode;
+        newRecord.workType = _record.workType;
+        newRecord.location = _record.location;
+        newRecord.workDescription = _record.workDescription;
+        newRecord.referenceDocument = _record.referenceDocument;
+        newRecord.faultInfo = _record.faultInfo;
+        newRecord.signatures = _record.signatures;
+        newRecord.recorder = msg.sender;
+        newRecord.timestamp = block.timestamp;
+
+        for (uint i = 0; i < _record.usedParts.length; i++) {
+            newRecord.usedParts.push(_record.usedParts[i]);
+        }
+        for (uint i = 0; i < _record.usedTools.length; i++) {
+            newRecord.usedTools.push(_record.usedTools[i]);
+        }
+        for (uint i = 0; i < _record.testMeasureData.length; i++) {
+            newRecord.testMeasureData.push(_record.testMeasureData[i]);
+        }
+        for (uint i = 0; i < _record.replaceInfo.length; i++) {
+            newRecord.replaceInfo.push(_record.replaceInfo[i]);
+        }
 
         // 更新索引
         aircraftRecords[_record.aircraftRegNo].push(_record.recordId);
         jobCardRecords[_record.jobCardNo].push(_record.recordId);
+        mechanicRecords[_record.signatures.performedBy].push(_record.recordId);
         recordExists[_record.recordId] = true;
 
         emit RecordAdded(
@@ -155,5 +186,12 @@ contract AviationMaintenance {
         string memory _jobCardNo
     ) public view returns (string[] memory) {
         return jobCardRecords[_jobCardNo];
+    }
+
+    // 4. 根据机械师(工作者)查询所有 Record ID
+    function getRecordIdsByMechanic(
+        string memory _mechanic
+    ) public view returns (string[] memory) {
+        return mechanicRecords[_mechanic];
     }
 }

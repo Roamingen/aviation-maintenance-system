@@ -3,19 +3,14 @@
     <el-form :model="form" label-width="140px" ref="formRef">
       <el-divider content-position="left">基础信息</el-divider>
       <el-row :gutter="20">
-        <el-col :span="8">
+        <el-col :span="12">
           <el-form-item label="飞机注册号" required>
             <el-input v-model="form.aircraftRegNo" placeholder="例如: B-1234" />
           </el-form-item>
         </el-col>
-        <el-col :span="8">
+        <el-col :span="12">
           <el-form-item label="机型" required>
             <el-input v-model="form.aircraftType" placeholder="例如: B737-800" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="工卡号" required>
-            <el-input v-model="form.jobCardNo" placeholder="唯一标识" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -33,12 +28,7 @@
         </el-col>
         <el-col :span="8">
           <el-form-item label="工作类型">
-            <el-select v-model="form.workType" placeholder="请选择">
-              <el-option label="航前检查" value="Pre-flight" />
-              <el-option label="航后检查" value="Post-flight" />
-              <el-option label="排故" value="Troubleshooting" />
-              <el-option label="定检" value="Scheduled Check" />
-            </el-select>
+            <el-input v-model="form.workType" placeholder="请输入工作类型" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -56,37 +46,107 @@
       </el-form-item>
 
       <el-divider content-position="left">航材与工具</el-divider>
-      <el-row :gutter="20">
-        <el-col :span="8">
-          <el-form-item label="件号">
-            <el-input v-model="form.partToolList.partNumber" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="序号">
-            <el-input v-model="form.partToolList.serialNumber" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="工具编号">
-            <el-input v-model="form.partToolList.toolNumber" />
-          </el-form-item>
-        </el-col>
-      </el-row>
+      
+      <!-- 消耗件列表 -->
+      <h4>消耗件 (Parts)</h4>
+      <el-table :data="form.usedParts" style="width: 100%; margin-bottom: 10px;" border size="small">
+        <el-table-column label="件号" prop="partNumber">
+          <template #default="scope">
+            <el-input v-model="scope.row.partNumber" placeholder="件号" />
+          </template>
+        </el-table-column>
+        <el-table-column label="序号" prop="serialNumber">
+          <template #default="scope">
+            <el-input v-model="scope.row.serialNumber" placeholder="序号" />
+          </template>
+        </el-table-column>
+        <el-table-column width="60" align="center">
+          <template #header>
+            <el-button type="primary" link @click="addPart" size="small">+</el-button>
+          </template>
+          <template #default="scope">
+            <el-button type="danger" link @click="removePart(scope.$index)" size="small">-</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 工具列表 -->
+      <h4>工具 (Tools)</h4>
+      <el-table :data="form.usedTools" style="width: 100%; margin-bottom: 10px;" border size="small">
+        <el-table-column label="工具编号">
+          <template #default="scope">
+            <el-input v-model="scope.row.toolNumber" placeholder="工具编号" />
+          </template>
+        </el-table-column>
+        <el-table-column width="60" align="center">
+          <template #header>
+            <el-button type="primary" link @click="addTool" size="small">+</el-button>
+          </template>
+          <template #default="scope">
+            <el-button type="danger" link @click="removeTool(scope.$index)" size="small">-</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
       <el-divider content-position="left">测试数据</el-divider>
-      <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="实测值">
-            <el-input v-model="form.testMeasureData.measuredValues" placeholder="禁止填写'正常'" />
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="是否合格">
-            <el-switch v-model="form.testMeasureData.isPass" />
-          </el-form-item>
-        </el-col>
-      </el-row>
+      <el-table :data="form.testMeasureData" style="width: 100%; margin-bottom: 10px;" border size="small">
+        <el-table-column label="实验项目名称" prop="testItemName">
+          <template #default="scope">
+            <el-input v-model="scope.row.testItemName" placeholder="项目名称" />
+          </template>
+        </el-table-column>
+        <el-table-column label="实测值" prop="measuredValues">
+          <template #default="scope">
+            <el-input v-model="scope.row.measuredValues" placeholder="禁止填写'正常'" />
+          </template>
+        </el-table-column>
+        <el-table-column label="是否合格" width="100" align="center">
+          <template #default="scope">
+            <el-switch v-model="scope.row.isPass" />
+          </template>
+        </el-table-column>
+        <el-table-column width="60" align="center">
+          <template #header>
+            <el-button type="primary" link @click="addTestData" size="small">+</el-button>
+          </template>
+          <template #default="scope">
+            <el-button type="danger" link @click="removeTestData(scope.$index)" size="small">-</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <el-divider content-position="left">更换件信息 (Replace Info)</el-divider>
+      <el-table :data="form.replaceInfo" style="width: 100%; margin-bottom: 10px;" border size="small">
+        <el-table-column label="拆下件号">
+          <template #default="scope"><el-input v-model="scope.row.removedPartNo" size="small"/></template>
+        </el-table-column>
+        <el-table-column label="拆下序号">
+          <template #default="scope"><el-input v-model="scope.row.removedSerialNo" size="small"/></template>
+        </el-table-column>
+        <el-table-column label="拆下件状态">
+          <template #default="scope"><el-input v-model="scope.row.removedStatus" size="small" placeholder="待修/报废"/></template>
+        </el-table-column>
+        <el-table-column label="装上件号">
+          <template #default="scope"><el-input v-model="scope.row.installedPartNo" size="small"/></template>
+        </el-table-column>
+        <el-table-column label="装上序号">
+          <template #default="scope"><el-input v-model="scope.row.installedSerialNo" size="small"/></template>
+        </el-table-column>
+        <el-table-column label="装上件来源">
+          <template #default="scope"><el-input v-model="scope.row.installedSource" size="small" placeholder="库房/拆件"/></template>
+        </el-table-column>
+        <el-table-column label="更换原因">
+          <template #default="scope"><el-input v-model="scope.row.replacementReason" size="small"/></template>
+        </el-table-column>
+        <el-table-column width="60" align="center">
+          <template #header>
+            <el-button type="primary" link @click="addReplaceInfo" size="small">+</el-button>
+          </template>
+          <template #default="scope">
+            <el-button type="danger" link @click="removeReplaceInfo(scope.$index)" size="small">-</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
       <el-divider content-position="left">签署信息</el-divider>
       <el-row :gutter="20">
@@ -128,15 +188,9 @@ const form = reactive({
   location: '',
   workDescription: '',
   referenceDocument: '',
-  partToolList: {
-    partNumber: '',
-    serialNumber: '',
-    toolNumber: ''
-  },
-  testMeasureData: {
-    measuredValues: '',
-    isPass: true
-  },
+  usedParts: [],
+  usedTools: [],
+  testMeasureData: [],
   faultInfo: {
     fimCode: '',
     faultDescription: ''
@@ -148,20 +202,28 @@ const form = reactive({
     riiBy: '',
     releaseBy: ''
   },
-  replaceInfo: {
-    removedPartNo: '',
-    removedSerialNo: '',
-    removedStatus: '',
-    installedPartNo: '',
-    installedSerialNo: '',
-    installedSource: '',
-    replacementReason: ''
-  }
+  replaceInfo: []
 })
 
+// Helper functions for dynamic tables
+const addPart = () => form.usedParts.push({ partNumber: '', serialNumber: '' })
+const removePart = (index) => form.usedParts.splice(index, 1)
+
+const addTool = () => form.usedTools.push({ toolNumber: '' })
+const removeTool = (index) => form.usedTools.splice(index, 1)
+
+const addTestData = () => form.testMeasureData.push({ testItemName: '', measuredValues: '', isPass: true })
+const removeTestData = (index) => form.testMeasureData.splice(index, 1)
+
+const addReplaceInfo = () => form.replaceInfo.push({
+  removedPartNo: '', removedSerialNo: '', removedStatus: '',
+  installedPartNo: '', installedSerialNo: '', installedSource: '', replacementReason: ''
+})
+const removeReplaceInfo = (index) => form.replaceInfo.splice(index, 1)
+
 const submitForm = async () => {
-  if (!form.aircraftRegNo || !form.jobCardNo || !form.workDescription) {
-    ElMessage.error('请填写必填项')
+  if (!form.aircraftRegNo || !form.workDescription || !form.signatures.performedBy) {
+    ElMessage.error('请填写必填项 (飞机号、工作描述、工作者签名)')
     return
   }
 
@@ -170,14 +232,20 @@ const submitForm = async () => {
     // 设置当前时间戳
     form.signatures.performTime = Math.floor(Date.now() / 1000)
 
-    const response = await axios.post('http://localhost:3000/api/record', form)
+    // Prepare data for backend
+    const payload = {
+      ...form,
+      usedTools: form.usedTools.map(t => t.toolNumber) // Transform objects to strings
+    }
+
+    const response = await axios.post('http://localhost:3000/api/record', payload)
     if (response.data.success) {
       ElNotification({
         title: '提交成功',
-        message: `交易哈希: ${response.data.txHash}`,
+        message: `工作单号(Hash): ${response.data.jobCardNo}`,
         type: 'success',
         duration: 0, // 不自动关闭
-        width: '500px' // 尝试设置宽度，虽然 Element Plus Notification 宽度通常由 CSS 控制，但内容长会自动撑开
+        width: '500px'
       })
       resetForm()
     } else {
@@ -191,10 +259,11 @@ const submitForm = async () => {
 }
 
 const resetForm = () => {
-  // 简单重置逻辑，实际可能需要更深度的重置
-  form.jobCardNo = ''
   form.workDescription = ''
-  form.testMeasureData.measuredValues = ''
+  form.usedParts = []
+  form.usedTools = []
+  form.testMeasureData = []
+  form.replaceInfo = []
 }
 </script>
 

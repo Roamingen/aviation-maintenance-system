@@ -8,10 +8,10 @@
       </template>
       
       <el-tabs v-model="activeTab">
-        <!-- 按记录编号查询 (Hash) -->
-        <el-tab-pane label="按记录编号查询 (Record ID)" name="recordId">
+        <!-- 按工作单号查询 (Hash) -->
+        <el-tab-pane label="按工作单号查询 (Hash)" name="recordId">
           <div class="search-input">
-            <el-input v-model="searchRecordId" placeholder="请输入记录编号 (Hash)" clearable @keyup.enter="searchByRecordId">
+            <el-input v-model="searchRecordId" placeholder="请输入工作单号 (Hash)" clearable @keyup.enter="searchByRecordId">
               <template #append>
                 <el-button @click="searchByRecordId">查询</el-button>
               </template>
@@ -20,14 +20,13 @@
 
           <div v-if="recordResult" class="result-area">
             <el-descriptions title="记录详情" border :column="2">
-              <el-descriptions-item label="记录编号" :span="2">
+              <el-descriptions-item label="工卡号" :span="2">
                 <el-tooltip :content="recordResult.recordId" placement="top">
                   <el-tag type="info" style="max-width: 100%; overflow: hidden; text-overflow: ellipsis;">{{ recordResult.recordId }}</el-tag>
                 </el-tooltip>
               </el-descriptions-item>
               <el-descriptions-item label="飞机号">{{ recordResult.aircraftRegNo }}</el-descriptions-item>
               <el-descriptions-item label="机型">{{ recordResult.aircraftType }}</el-descriptions-item>
-              <el-descriptions-item label="工卡号">{{ recordResult.jobCardNo }}</el-descriptions-item>
               <el-descriptions-item label="工作类型">{{ recordResult.workType }}</el-descriptions-item>
               <el-descriptions-item label="工作地点">{{ recordResult.location }}</el-descriptions-item>
               <el-descriptions-item label="记录人地址">
@@ -36,12 +35,30 @@
                  </el-tooltip>
               </el-descriptions-item>
               <el-descriptions-item label="工作描述" :span="2">{{ recordResult.workDescription }}</el-descriptions-item>
-              <el-descriptions-item label="实测值">{{ recordResult.testMeasureData?.measuredValues }}</el-descriptions-item>
-              <el-descriptions-item label="合格状态">
-                <el-tag :type="recordResult.testMeasureData?.isPass ? 'success' : 'danger'">
-                  {{ recordResult.testMeasureData?.isPass ? '合格' : '不合格' }}
-                </el-tag>
+              <el-descriptions-item label="消耗件" :span="2">
+                <div v-for="(part, idx) in recordResult.usedParts" :key="idx">
+                  {{ part.partNumber }} (SN: {{ part.serialNumber }})
+                </div>
               </el-descriptions-item>
+              <el-descriptions-item label="工具" :span="2">
+                <div v-for="(tool, idx) in recordResult.usedTools" :key="idx">
+                  {{ tool }}
+                </div>
+              </el-descriptions-item>
+              <el-descriptions-item label="测试数据" :span="2">
+                <div v-for="(data, idx) in recordResult.testMeasureData" :key="idx">
+                  <strong>{{ data.testItemName }}:</strong> {{ data.measuredValues }} 
+                  <el-tag size="small" :type="data.isPass ? 'success' : 'danger'">{{ data.isPass ? '合格' : '不合格' }}</el-tag>
+                </div>
+              </el-descriptions-item>
+              <el-descriptions-item label="更换件" :span="2" v-if="recordResult.replaceInfo && recordResult.replaceInfo.length">
+                 <div v-for="(info, idx) in recordResult.replaceInfo" :key="idx" style="margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
+                    <div><el-tag size="small" type="danger">拆</el-tag> {{ info.removedPartNo }} (SN: {{ info.removedSerialNo }}) - 状态: {{ info.removedStatus }}</div>
+                    <div><el-tag size="small" type="success">装</el-tag> {{ info.installedPartNo }} (SN: {{ info.installedSerialNo }}) - 来源: {{ info.installedSource }}</div>
+                    <div style="color: #666; font-size: 0.9em;">原因: {{ info.replacementReason }}</div>
+                 </div>
+              </el-descriptions-item>
+              <el-descriptions-item label="工作者">{{ recordResult.signatures?.performedBy }}</el-descriptions-item>
             </el-descriptions>
           </div>
         </el-tab-pane>
@@ -78,7 +95,7 @@
               >
                 <el-card>
                   <div class="card-header-flex">
-                    <h4>{{ record.workType }} - {{ record.jobCardNo }}</h4>
+                    <h4>{{ record.workType }} <span style="font-size: 0.8em; color: #909399; font-weight: normal;">#{{ record.recordId.slice(0, 8) }}...</span></h4>
                     <el-button type="primary" link @click="toggleExpand(record)">
                       {{ record.expanded ? '收起详情' : '查看详情' }}
                     </el-button>
@@ -88,14 +105,13 @@
                   <div v-if="record.expanded" class="expanded-detail">
                     <el-divider style="margin: 10px 0;" />
                     <el-descriptions :column="2" size="small" border>
-                      <el-descriptions-item label="记录编号" :span="2">
+                      <el-descriptions-item label="工卡号" :span="2">
                         <el-tooltip :content="record.recordId" placement="top">
                             <el-tag type="info" style="max-width: 100%; overflow: hidden; text-overflow: ellipsis;">{{ record.recordId }}</el-tag>
                         </el-tooltip>
                       </el-descriptions-item>
                       <el-descriptions-item label="飞机号">{{ record.aircraftRegNo }}</el-descriptions-item>
                       <el-descriptions-item label="机型">{{ record.aircraftType }}</el-descriptions-item>
-                      <el-descriptions-item label="工卡号">{{ record.jobCardNo }}</el-descriptions-item>
                       <el-descriptions-item label="工作类型">{{ record.workType }}</el-descriptions-item>
                       <el-descriptions-item label="工作地点">{{ record.location }}</el-descriptions-item>
                       <el-descriptions-item label="记录人地址">
@@ -104,11 +120,28 @@
                         </el-tooltip>
                       </el-descriptions-item>
                       <el-descriptions-item label="工作描述" :span="2">{{ record.workDescription }}</el-descriptions-item>
-                      <el-descriptions-item label="实测值">{{ record.testMeasureData?.measuredValues }}</el-descriptions-item>
-                      <el-descriptions-item label="合格状态">
-                        <el-tag :type="record.testMeasureData?.isPass ? 'success' : 'danger'">
-                          {{ record.testMeasureData?.isPass ? '合格' : '不合格' }}
-                        </el-tag>
+                      <el-descriptions-item label="消耗件" :span="2">
+                        <div v-for="(part, idx) in record.usedParts" :key="idx">
+                          {{ part.partNumber }} (SN: {{ part.serialNumber }})
+                        </div>
+                      </el-descriptions-item>
+                      <el-descriptions-item label="工具" :span="2">
+                        <div v-for="(tool, idx) in record.usedTools" :key="idx">
+                          {{ tool }}
+                        </div>
+                      </el-descriptions-item>
+                      <el-descriptions-item label="测试数据" :span="2">
+                        <div v-for="(data, idx) in record.testMeasureData" :key="idx">
+                          <strong>{{ data.testItemName }}:</strong> {{ data.measuredValues }} 
+                          <el-tag size="small" :type="data.isPass ? 'success' : 'danger'">{{ data.isPass ? '合格' : '不合格' }}</el-tag>
+                        </div>
+                      </el-descriptions-item>
+                      <el-descriptions-item label="更换件" :span="2" v-if="record.replaceInfo && record.replaceInfo.length">
+                         <div v-for="(info, idx) in record.replaceInfo" :key="idx" style="margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
+                            <div><el-tag size="small" type="danger">拆</el-tag> {{ info.removedPartNo }} (SN: {{ info.removedSerialNo }}) - 状态: {{ info.removedStatus }}</div>
+                            <div><el-tag size="small" type="success">装</el-tag> {{ info.installedPartNo }} (SN: {{ info.installedSerialNo }}) - 来源: {{ info.installedSource }}</div>
+                            <div style="color: #666; font-size: 0.9em;">原因: {{ info.replacementReason }}</div>
+                         </div>
                       </el-descriptions-item>
                       <el-descriptions-item label="工作者">{{ record.signatures?.performedBy }}</el-descriptions-item>
                     </el-descriptions>
@@ -120,39 +153,39 @@
           <el-empty v-else-if="searchedAircraft" description="暂无记录 (或被筛选过滤)" />
         </el-tab-pane>
 
-        <!-- 按工卡号查询 -->
-        <el-tab-pane label="按工卡号查询" name="jobcard">
+        <!-- 按机械师查询 -->
+        <el-tab-pane label="按机械师查询" name="mechanic">
           <div class="search-input">
-            <el-input v-model="searchJobCardNo" placeholder="请输入工卡号" clearable @keyup.enter="searchByJobCard">
+            <el-input v-model="searchMechanic" placeholder="请输入机械师姓名" clearable @keyup.enter="searchByMechanic">
               <template #append>
-                <el-button @click="searchByJobCard">查询</el-button>
+                <el-button @click="searchByMechanic">查询</el-button>
               </template>
             </el-input>
           </div>
 
            <!-- 筛选区域 -->
-          <div v-if="jobCardRecords.length > 0" class="filter-area">
+          <div v-if="mechanicRecords.length > 0" class="filter-area">
              <el-date-picker
-                v-model="jobCardDateRange"
+                v-model="mechanicDateRange"
                 type="daterange"
                 range-separator="至"
                 start-placeholder="开始日期"
                 end-placeholder="结束日期"
-                @change="filterJobCardRecords"
+                @change="filterMechanicRecords"
               />
           </div>
 
-          <div v-if="filteredJobCardRecords.length > 0" class="result-list">
+          <div v-if="filteredMechanicRecords.length > 0" class="result-list">
             <el-timeline>
               <el-timeline-item
-                v-for="(record, index) in filteredJobCardRecords"
+                v-for="(record, index) in filteredMechanicRecords"
                 :key="index"
                 :timestamp="formatTimestamp(record.timestamp)"
                 placement="top"
               >
                 <el-card>
                   <div class="card-header-flex">
-                    <h4>{{ record.aircraftRegNo }} - {{ record.workType }}</h4>
+                    <h4>{{ record.workType }} <span style="font-size: 0.8em; color: #909399; font-weight: normal;">#{{ record.recordId.slice(0, 8) }}...</span></h4>
                     <el-button type="primary" link @click="toggleExpand(record)">
                       {{ record.expanded ? '收起详情' : '查看详情' }}
                     </el-button>
@@ -162,14 +195,13 @@
                   <div v-if="record.expanded" class="expanded-detail">
                     <el-divider style="margin: 10px 0;" />
                     <el-descriptions :column="2" size="small" border>
-                      <el-descriptions-item label="记录编号" :span="2">
-                         <el-tooltip :content="record.recordId" placement="top">
+                      <el-descriptions-item label="工卡号" :span="2">
+                        <el-tooltip :content="record.recordId" placement="top">
                             <el-tag type="info" style="max-width: 100%; overflow: hidden; text-overflow: ellipsis;">{{ record.recordId }}</el-tag>
                         </el-tooltip>
                       </el-descriptions-item>
                       <el-descriptions-item label="飞机号">{{ record.aircraftRegNo }}</el-descriptions-item>
                       <el-descriptions-item label="机型">{{ record.aircraftType }}</el-descriptions-item>
-                      <el-descriptions-item label="工卡号">{{ record.jobCardNo }}</el-descriptions-item>
                       <el-descriptions-item label="工作类型">{{ record.workType }}</el-descriptions-item>
                       <el-descriptions-item label="工作地点">{{ record.location }}</el-descriptions-item>
                       <el-descriptions-item label="记录人地址">
@@ -178,11 +210,28 @@
                         </el-tooltip>
                       </el-descriptions-item>
                       <el-descriptions-item label="工作描述" :span="2">{{ record.workDescription }}</el-descriptions-item>
-                      <el-descriptions-item label="实测值">{{ record.testMeasureData?.measuredValues }}</el-descriptions-item>
-                      <el-descriptions-item label="合格状态">
-                        <el-tag :type="record.testMeasureData?.isPass ? 'success' : 'danger'">
-                          {{ record.testMeasureData?.isPass ? '合格' : '不合格' }}
-                        </el-tag>
+                      <el-descriptions-item label="消耗件" :span="2">
+                        <div v-for="(part, idx) in record.usedParts" :key="idx">
+                          {{ part.partNumber }} (SN: {{ part.serialNumber }})
+                        </div>
+                      </el-descriptions-item>
+                      <el-descriptions-item label="工具" :span="2">
+                        <div v-for="(tool, idx) in record.usedTools" :key="idx">
+                          {{ tool }}
+                        </div>
+                      </el-descriptions-item>
+                      <el-descriptions-item label="测试数据" :span="2">
+                        <div v-for="(data, idx) in record.testMeasureData" :key="idx">
+                          <strong>{{ data.testItemName }}:</strong> {{ data.measuredValues }} 
+                          <el-tag size="small" :type="data.isPass ? 'success' : 'danger'">{{ data.isPass ? '合格' : '不合格' }}</el-tag>
+                        </div>
+                      </el-descriptions-item>
+                      <el-descriptions-item label="更换件" :span="2" v-if="record.replaceInfo && record.replaceInfo.length">
+                         <div v-for="(info, idx) in record.replaceInfo" :key="idx" style="margin-bottom: 5px; border-bottom: 1px dashed #eee; padding-bottom: 5px;">
+                            <div><el-tag size="small" type="danger">拆</el-tag> {{ info.removedPartNo }} (SN: {{ info.removedSerialNo }}) - 状态: {{ info.removedStatus }}</div>
+                            <div><el-tag size="small" type="success">装</el-tag> {{ info.installedPartNo }} (SN: {{ info.installedSerialNo }}) - 来源: {{ info.installedSource }}</div>
+                            <div style="color: #666; font-size: 0.9em;">原因: {{ info.replacementReason }}</div>
+                         </div>
                       </el-descriptions-item>
                       <el-descriptions-item label="工作者">{{ record.signatures?.performedBy }}</el-descriptions-item>
                     </el-descriptions>
@@ -191,7 +240,7 @@
               </el-timeline-item>
             </el-timeline>
           </div>
-          <el-empty v-else-if="searchedJobCard" description="暂无记录 (或被筛选过滤)" />
+          <el-empty v-else-if="searchedMechanic" description="暂无记录 (或被筛选过滤)" />
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -206,7 +255,7 @@ import { ElMessage } from 'element-plus'
 const activeTab = ref('recordId')
 const searchRecordId = ref('')
 const searchRegNo = ref('')
-const searchJobCardNo = ref('')
+const searchMechanic = ref('')
 
 const recordResult = ref(null)
 
@@ -226,17 +275,17 @@ const filteredAircraftRecords = computed(() => {
     })
 })
 
-// 工卡号查询相关
-const jobCardRecords = ref([])
-const searchedJobCard = ref(false)
-const jobCardDateRange = ref(null)
-const filteredJobCardRecords = computed(() => {
-    if (!jobCardDateRange.value || jobCardDateRange.value.length !== 2) {
-        return jobCardRecords.value
+// 机械师查询相关
+const mechanicRecords = ref([])
+const searchedMechanic = ref(false)
+const mechanicDateRange = ref(null)
+const filteredMechanicRecords = computed(() => {
+    if (!mechanicDateRange.value || mechanicDateRange.value.length !== 2) {
+        return mechanicRecords.value
     }
-    const start = jobCardDateRange.value[0].getTime() / 1000
-    const end = jobCardDateRange.value[1].getTime() / 1000 + 86400
-    return jobCardRecords.value.filter(r => {
+    const start = mechanicDateRange.value[0].getTime() / 1000
+    const end = mechanicDateRange.value[1].getTime() / 1000 + 86400
+    return mechanicRecords.value.filter(r => {
         const ts = Number(r.timestamp)
         return ts >= start && ts < end
     })
@@ -276,16 +325,16 @@ const searchByAircraft = async () => {
   }
 }
 
-// 按工卡号查询
-const searchByJobCard = async () => {
-  if (!searchJobCardNo.value) return
-  searchedJobCard.value = true
+// 按机械师查询
+const searchByMechanic = async () => {
+  if (!searchMechanic.value) return
+  searchedMechanic.value = true
   try {
-    const res = await axios.get(`http://localhost:3000/api/jobcard/${searchJobCardNo.value}`)
+    const res = await axios.get(`http://localhost:3000/api/mechanic/${searchMechanic.value}`)
     if (res.data.success) {
-      jobCardRecords.value = res.data.data.map(r => ({ ...r, expanded: false }))
+      mechanicRecords.value = res.data.data.map(r => ({ ...r, expanded: false }))
     } else {
-      jobCardRecords.value = []
+      mechanicRecords.value = []
     }
   } catch (error) {
     ElMessage.error('查询失败')
@@ -306,7 +355,7 @@ const formatTimestamp = (ts) => {
 const filterRecords = () => {
     // 触发 computed 更新
 }
-const filterJobCardRecords = () => {
+const filterMechanicRecords = () => {
     // 触发 computed 更新
 }
 </script>
