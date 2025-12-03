@@ -1,0 +1,144 @@
+<template>
+  <div class="app-container">
+    <el-container class="layout-container">
+      <el-aside width="220px" class="aside">
+        <div class="logo-area">
+          <div class="logo-icon">✈️</div>
+          <div class="logo-text">民航检修存证</div>
+        </div>
+        <el-menu
+          :default-active="currentView"
+          class="el-menu-vertical"
+          @select="handleSelect"
+          background-color="#304156"
+          text-color="#bfcbd9"
+          active-text-color="#409EFF"
+        >
+          <el-menu-item index="search">
+            <el-icon><Search /></el-icon>
+            <span>查询信息</span>
+          </el-menu-item>
+          <el-menu-item index="mechanic">
+            <el-icon><Edit /></el-icon>
+            <span>录入信息</span>
+          </el-menu-item>
+          <el-menu-item index="all">
+            <el-icon><List /></el-icon>
+            <span>所有检修记录</span>
+          </el-menu-item>
+        </el-menu>
+      </el-aside>
+      
+      <el-container>
+        <el-header class="header">
+          <div class="header-title">基于区块链的民航飞机检修记录存证系统</div>
+        </el-header>
+        
+        <el-main class="main-content">
+          <RecordSearch v-if="currentView === 'search'" />
+          <RecordForm v-if="currentView === 'mechanic'" />
+          <div v-if="currentView === 'all'" class="all-records-placeholder">
+            <el-empty description="所有检修记录功能开发中 (需要区块链索引服务支持)" />
+          </div>
+        </el-main>
+        
+        <el-footer class="footer">
+          Blockchain Aviation Maintenance System © 2025
+        </el-footer>
+      </el-container>
+    </el-container>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { Search, Edit, List } from '@element-plus/icons-vue'
+import RecordSearch from './components/RecordSearch.vue'
+import RecordForm from './components/RecordForm.vue'
+
+const currentView = ref('search')
+
+const handleSelect = (key) => {
+  currentView.value = key
+}
+</script>
+
+<style>
+body {
+  margin: 0;
+  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', '微软雅黑', Arial, sans-serif;
+  background-color: #f5f7fa;
+  height: 100vh;
+}
+
+.app-container {
+  height: 100vh;
+}
+
+.layout-container {
+  height: 100%;
+}
+
+.aside {
+  background-color: #304156;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.logo-area {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #2b3649;
+  color: #fff;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.logo-icon {
+  margin-right: 10px;
+}
+
+.el-menu-vertical {
+  border-right: none;
+}
+
+.header {
+  background-color: #fff;
+  box-shadow: 0 1px 4px rgba(0,21,41,.08);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  height: 60px;
+}
+
+.header-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.main-content {
+  padding: 20px;
+  background-color: #f0f2f5;
+}
+
+.footer {
+  text-align: center;
+  color: #909399;
+  font-size: 12px;
+  line-height: 60px;
+  background-color: #fff;
+}
+
+.all-records-placeholder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  background: #fff;
+  border-radius: 8px;
+}
+</style>
