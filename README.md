@@ -137,8 +137,14 @@ node seed.js
 
 ## ❓ 常见问题 (FAQ)
 
-**Q: 脚本提示 "禁止运行脚本"？**
-A: 请以管理员身份打开 PowerShell，运行 `Set-ExecutionPolicy RemoteSigned` 解除限制。
+**Q: 脚本提示 "禁止运行脚本" (cannot be loaded because running scripts is disabled)？**
+A: 这是 Windows 的默认安全策略。
+**解决方法 1 (推荐)**：直接使用 `start_dev.bat`，它不受此限制。
+**解决方法 2**：在 PowerShell 中运行以下命令（无需管理员权限）：
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+输入 `Y` 确认即可。
 
 **Q: 如何重置整个系统？**
 A: 运行 `.\stop_dev.ps1` 停止服务，然后再次运行 `.\start_dev.ps1`。每次重启都会重置本地区块链状态。
