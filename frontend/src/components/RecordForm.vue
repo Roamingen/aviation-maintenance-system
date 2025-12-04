@@ -22,18 +22,25 @@
           </el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="ATA章节号">
+          <el-form-item label="ATA章节号" required>
             <el-input v-model="form.ataCode" />
           </el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="工作类型">
-            <el-input v-model="form.workType" placeholder="请输入工作类型" />
+          <el-form-item label="工作类型" required>
+            <el-select v-model="form.workType" placeholder="请选择工作类型" style="width: 100%">
+              <el-option
+                v-for="item in workTypeOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
           </el-form-item>
         </el-col>
       </el-row>
 
-      <el-form-item label="工作地点">
+      <el-form-item label="工作地点" required>
         <el-input v-model="form.location" />
       </el-form-item>
 
@@ -229,9 +236,21 @@ const addReplaceInfo = () => form.replaceInfo.push({
 })
 const removeReplaceInfo = (index) => form.replaceInfo.splice(index, 1)
 
+const workTypeOptions = [
+  { value: '航前检查（Pre-flight Inspection）', label: '航前检查（Pre-flight Inspection）' },
+  { value: '过站检查（Transit / Turnaround Check）', label: '过站检查（Transit / Turnaround Check）' },
+  { value: '航后检查（Post-flight Inspection）', label: '航后检查（Post-flight Inspection）' },
+  { value: '每日检查（Daily Check）', label: '每日检查（Daily Check）' },
+  { value: 'A 检（A-Check）', label: 'A 检（A-Check）' },
+  { value: 'B 检（B-Check）', label: 'B 检（B-Check）' },
+  { value: 'C 检（C-Check）', label: 'C 检（C-Check）' },
+  { value: 'D 检 / 重检（D-Check / Heavy Maintenance Visit）', label: 'D 检 / 重检（D-Check / Heavy Maintenance Visit）' },
+  { value: '时控件更换（Life-limited Parts Replacement）', label: '时控件更换（Life-limited Parts Replacement）' }
+]
+
 const submitForm = async () => {
-  if (!form.aircraftRegNo || !form.workDescription || !form.signatures.performedByName || !form.signatures.performedById) {
-    ElMessage.error('请填写必填项 (飞机号、工作描述、工作者姓名、工号)')
+  if (!form.aircraftRegNo || !form.workDescription || !form.signatures.performedByName || !form.signatures.performedById || !form.ataCode || !form.workType || !form.location) {
+    ElMessage.error('请填写必填项 (飞机号、ATA章节号、工作类型、工作地点、工作描述、工作者姓名、工号)')
     return
   }
 
