@@ -71,10 +71,10 @@
           <el-empty v-else-if="searchedAircraft" description="暂无记录 (或被筛选过滤)" />
         </el-tab-pane>
 
-        <!-- 按机械师查询 -->
-        <el-tab-pane label="按机械师查询" name="mechanic">
+        <!-- 按工作者工号查询 -->
+        <el-tab-pane label="按工作者工号查询" name="mechanic">
           <div class="search-input">
-            <el-input v-model="searchMechanic" placeholder="请输入机械师姓名" clearable @keyup.enter="searchByMechanic">
+            <el-input v-model="searchMechanic" placeholder="请输入工作者工号" clearable @keyup.enter="searchByMechanic">
               <template #append>
                 <el-button @click="searchByMechanic">查询</el-button>
               </template>
@@ -198,7 +198,7 @@ const searchByAircraft = async () => {
   }
 }
 
-// 按机械师查询
+// 按工作者工号查询
 const searchByMechanic = async () => {
   if (!searchMechanic.value) return
   searchedMechanic.value = true

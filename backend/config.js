@@ -4,7 +4,7 @@ const path = require("path");
 
 // 1. 配置
 // 注意：每次重新部署合约后，都需要更新这个地址
-const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";;;;;;;;;;;;;;; 
+const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";;;;;;;;;;;;;;;; 
 
 // Hardhat 本地网络 RPC
 const RPC_URL = "http://127.0.0.1:8545";
@@ -29,6 +29,7 @@ module.exports = {
     CONTRACT_ADDRESS,
     ABI
 };
+
 
 
 

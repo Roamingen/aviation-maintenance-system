@@ -194,9 +194,9 @@ contract AviationMaintenance {
         // 更新索引
         aircraftRecords[_record.aircraftRegNo].push(_record.recordId);
         jobCardRecords[_record.jobCardNo].push(_record.recordId);
-        mechanicRecords[_record.signatures.performedByName].push(
+        mechanicRecords[_record.signatures.performedById].push(
             _record.recordId
-        ); // 使用名字索引
+        ); // 使用工号索引
         recordExists[_record.recordId] = true;
 
         emit RecordAdded(
@@ -292,10 +292,10 @@ contract AviationMaintenance {
         return jobCardRecords[_jobCardNo];
     }
 
-    // 4. 根据机械师(工作者)查询所有 Record ID
+    // 4. 根据机械师工号查询所有 Record ID
     function getRecordIdsByMechanic(
-        string memory _mechanic
+        string memory _mechanicId
     ) public view returns (string[] memory) {
-        return mechanicRecords[_mechanic];
+        return mechanicRecords[_mechanicId];
     }
 }

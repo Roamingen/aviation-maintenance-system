@@ -77,11 +77,11 @@ app.get('/api/jobcard/:jobCardNo', async (req, res) => {
     }
 });
 
-// 3.6 查询：根据机械师(工作者)获取所有 Record ID
-app.get('/api/mechanic/:mechanic', async (req, res) => {
+// 3.6 查询：根据机械师工号获取所有 Record ID
+app.get('/api/mechanic/:mechanicId', async (req, res) => {
     try {
-        const { mechanic } = req.params;
-        const recordIds = await contract.getRecordIdsByMechanic(mechanic);
+        const { mechanicId } = req.params;
+        const recordIds = await contract.getRecordIdsByMechanic(mechanicId);
         
         const records = await Promise.all(recordIds.map(async (id) => {
             const r = await contract.getRecordById(id);
@@ -117,6 +117,9 @@ app.post('/api/record', async (req, res) => {
         recordData.recorder = "0x0000000000000000000000000000000000000000";
         recordData.timestamp = 0;
         recordData.status = 0; // RecordStatus.Pending
+        
+        // 确保 isRII 存在
+        if (typeof recordData.isRII === 'undefined') recordData.isRII = false;
 
         // 确保可选结构体存在，防止 ethers.js 报错
         if (!recordData.usedParts) recordData.usedParts = [];
@@ -130,7 +133,7 @@ app.post('/api/record', async (req, res) => {
         if (!recordData.signatures) {
             recordData.signatures = { 
                 performedBy: zeroAddr, performedByName: "", performedById: "", performTime: 0,
-                inspectedBy: zeroAddr, inspectedByName: "", inspectedById: "",
+                inspectedByPeerCheck: zeroAddr, inspectedByPeerCheckName: "", inspectedByPeerCheckId: "",
                 riiBy: zeroAddr, riiByName: "", riiById: "",
                 releaseBy: zeroAddr, releaseByName: "", releaseById: "", releaseTime: 0
             };
@@ -141,10 +144,10 @@ app.post('/api/record', async (req, res) => {
                 performedBy: zeroAddr, // 合约会覆盖为 msg.sender
                 performedByName: s.performedByName || s.performedBy || "", // 兼容旧字段
                 performedById: s.performedById || "", // 新增工号
-                performTime: 0,
-                inspectedBy: zeroAddr,
-                inspectedByName: "",
-                inspectedById: "",
+                performTime: s.performTime || 0, // 使用前端传来的时间
+                inspectedByPeerCheck: zeroAddr,
+                inspectedByPeerCheckName: "",
+                inspectedByPeerCheckId: "",
                 riiBy: zeroAddr,
                 riiByName: "",
                 riiById: "",
