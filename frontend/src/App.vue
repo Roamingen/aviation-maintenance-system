@@ -51,16 +51,17 @@
         </el-header>
         
         <el-main class="main-content">
-          <RecordSearch v-if="currentView === 'search'" />
-          <RecordForm v-if="currentView === 'mechanic'" />
-          <div v-if="currentView === 'all'" class="all-records-placeholder">
-            <el-empty description="所有检修记录功能开发中 (需要区块链索引服务支持)" />
+          <div class="content-wrapper">
+            <RecordSearch v-if="currentView === 'search'" />
+            <RecordForm v-if="currentView === 'mechanic'" />
+            <div v-if="currentView === 'all'" class="all-records-placeholder">
+              <el-empty description="所有检修记录功能开发中 (需要区块链索引服务支持)" />
+            </div>
+          </div>
+          <div class="footer">
+            Blockchain Aviation Maintenance System © 2025
           </div>
         </el-main>
-        
-        <el-footer class="footer">
-          Blockchain Aviation Maintenance System © 2025
-        </el-footer>
       </el-container>
     </el-container>
   </div>
@@ -190,8 +191,16 @@ body {
 }
 
 .main-content {
-  padding: 20px;
+  padding: 0;
   background-color: #f0f2f5;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.content-wrapper {
+  flex: 1;
+  padding: 20px;
 }
 
 .footer {
@@ -199,7 +208,8 @@ body {
   color: #909399;
   font-size: 12px;
   line-height: 60px;
-  background-color: #fff;
+  background-color: transparent;
+  flex-shrink: 0;
 }
 
 .all-records-placeholder {
