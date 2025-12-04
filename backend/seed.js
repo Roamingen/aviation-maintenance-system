@@ -1,8 +1,29 @@
-const { contract } = require('./config');
+const { contract, wallet } = require('./config');
 const { ethers } = require("ethers");
+
+// Hardhat Account #1 (Inspector/Releaser)
+// Address: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+const INSPECTOR_PRIVATE_KEY = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
 
 async function main() {
     console.log("🚀 开始预填充测试数据...");
+
+    // 1. 设置第二个钱包 (Inspector)
+    const provider = contract.runner.provider;
+    const inspectorWallet = new ethers.Wallet(INSPECTOR_PRIVATE_KEY, provider);
+    const inspectorContract = contract.connect(inspectorWallet);
+
+    // 2. 授权第二个钱包 (Owner -> Inspector)
+    // 检查是否已授权
+    const isAuthorized = await contract.authorizedNodes(inspectorWallet.address);
+    if (!isAuthorized) {
+        console.log(`🔑 正在授权 Inspector 钱包 (${inspectorWallet.address})...`);
+        const authTx = await contract.setNodeAuthorization(inspectorWallet.address, true);
+        await authTx.wait();
+        console.log(`   > 授权成功`);
+    } else {
+        console.log(`🔑 Inspector 钱包已授权`);
+    }
 
     const sampleRecords = [
         // 1. 轮胎更换 (B-1234)
@@ -29,11 +50,14 @@ async function main() {
                 faultDescription: ""
             },
             signatures: {
-                performedBy: "张三 (001)",
-                performTime: Math.floor(Date.now() / 1000),
-                inspectedBy: "李四 (002)",
-                riiBy: "王五 (RII)",
-                releaseBy: "赵六 (Release)"
+                performedByName: "张三",
+                performedById: "001",
+                inspectedByName: "李四",
+                inspectedById: "002",
+                riiByName: "王五",
+                riiById: "RII-001",
+                releaseByName: "赵六",
+                releaseById: "REL-001"
             },
             replaceInfo: [
                 {
@@ -74,11 +98,14 @@ async function main() {
                 faultDescription: "驾驶舱温度无法调节，ECAM 警告 AIR COND"
             },
             signatures: {
-                performedBy: "Mike (A003)",
-                performTime: Math.floor(Date.now() / 1000) - 3600,
-                inspectedBy: "Sarah (A004)",
-                riiBy: "",
-                releaseBy: "Tom (Release)"
+                performedByName: "Mike",
+                performedById: "A003",
+                inspectedByName: "Sarah",
+                inspectedById: "A004",
+                riiByName: "",
+                riiById: "",
+                releaseByName: "Tom",
+                releaseById: "REL-002"
             },
             replaceInfo: [
                 {
@@ -116,11 +143,14 @@ async function main() {
                 faultDescription: ""
             },
             signatures: {
-                performedBy: "陈工 (E001)",
-                performTime: Math.floor(Date.now() / 1000) - 7200,
-                inspectedBy: "刘工 (E002)",
-                riiBy: "",
-                releaseBy: "张经理"
+                performedByName: "陈工",
+                performedById: "E001",
+                inspectedByName: "刘工",
+                inspectedById: "E002",
+                riiByName: "",
+                riiById: "",
+                releaseByName: "张经理",
+                releaseById: "MGR-001"
             },
             replaceInfo: [],
             recorder: "0x0000000000000000000000000000000000000000",
@@ -151,11 +181,14 @@ async function main() {
                 faultDescription: "HYD SYS A LOW PRESS"
             },
             signatures: {
-                performedBy: "王强 (H005)",
-                performTime: Math.floor(Date.now() / 1000) - 10000,
-                inspectedBy: "赵雷",
-                riiBy: "孙监察",
-                releaseBy: "周放行"
+                performedByName: "王强",
+                performedById: "H005",
+                inspectedByName: "赵雷",
+                inspectedById: "INS-003",
+                riiByName: "孙监察",
+                riiById: "RII-002",
+                releaseByName: "周放行",
+                releaseById: "REL-003"
             },
             replaceInfo: [
                 {
@@ -202,11 +235,14 @@ async function main() {
                 faultDescription: ""
             },
             signatures: {
-                performedBy: "Geek (S001)",
-                performTime: Math.floor(Date.now() / 1000) - 500,
-                inspectedBy: "N/A",
-                riiBy: "",
-                releaseBy: "Master"
+                performedByName: "Geek",
+                performedById: "S001",
+                inspectedByName: "N/A",
+                inspectedById: "",
+                riiByName: "",
+                riiById: "",
+                releaseByName: "Master",
+                releaseById: "REL-004"
             },
             replaceInfo: [],
             recorder: "0x0000000000000000000000000000000000000000",
@@ -216,7 +252,8 @@ async function main() {
 
     // 手动管理 Nonce，防止 "nonce has already been used" 错误
     let currentNonce = await contract.runner.getNonce();
-    console.log(`🔧 当前起始 Nonce: ${currentNonce}`);
+    let inspectorNonce = await inspectorWallet.getNonce();
+    console.log(`🔧 当前起始 Nonce: Owner=${currentNonce}, Inspector=${inspectorNonce}`);
 
     for (const record of sampleRecords) {
         try {
@@ -226,24 +263,61 @@ async function main() {
             // 确保 jobCardNo 也使用 Hash (与后端逻辑一致)
             record.jobCardNo = record.recordId;
 
-            console.log(`📝 正在添加记录: ${record.workType} - ${record.aircraftRegNo} (Nonce: ${currentNonce})...`);
+            console.log(`📝 正在添加记录: ${record.workType} - ${record.aircraftRegNo}...`);
             
-            // 显式传递 nonce
-            const tx = await contract.addRecord(record, { nonce: currentNonce });
+            // 1. 构造符合合约新结构的 Signatures 对象
+            // 暂存后续签名需要的名字
+            const inspectorName = record.signatures.inspectedByName;
+            const inspectorId = record.signatures.inspectedById;
+            const releaserName = record.signatures.releaseByName;
+            const releaserId = record.signatures.releaseById;
             
-            // 交易发送成功后，立即增加 nonce，供下一次循环使用
-            currentNonce++;
+            const zeroAddr = "0x0000000000000000000000000000000000000000";
+            record.signatures = {
+                performedBy: zeroAddr,
+                performedByName: record.signatures.performedByName,
+                performedById: record.signatures.performedById, // 确保这里正确传递了工号
+                performTime: 0,
+                inspectedBy: zeroAddr,
+                inspectedByName: "", // 初始为空，后续签名时填入
+                inspectedById: "",
+                riiBy: zeroAddr,
+                riiByName: "",
+                riiById: "",
+                releaseBy: zeroAddr,
+                releaseByName: "", // 初始为空，后续签名时填入
+                releaseById: "",
+                releaseTime: 0
+            };
+            record.status = 0; // Pending
 
+            // 2. 提交记录 (Add Record) - 使用 Owner 钱包
+            const tx = await contract.addRecord(record, { nonce: currentNonce });
+            currentNonce++;
             await tx.wait();
-            console.log(`✅ 成功添加: ${record.recordId.slice(0, 10)}...`);
+            console.log(`   > 记录已创建 (Pending)`);
+
+            // 3. 互检签名 (Sign Inspection) - 使用 Inspector 钱包
+            if (inspectorName && inspectorName !== "N/A") {
+                console.log(`   > 正在进行互检签名: ${inspectorName} (by Inspector Wallet)...`);
+                const tx2 = await inspectorContract.signInspection(record.recordId, inspectorName, inspectorId, { nonce: inspectorNonce });
+                inspectorNonce++;
+                await tx2.wait();
+            }
+
+            // 4. 放行签名 (Sign Release) - 使用 Owner 钱包 (或者 Inspector 钱包，这里演示用 Owner)
+            if (releaserName) {
+                console.log(`   > 正在进行放行签名: ${releaserName} (by Owner Wallet)...`);
+                const tx3 = await contract.signRelease(record.recordId, releaserName, releaserId, { nonce: currentNonce });
+                currentNonce++;
+                await tx3.wait();
+                console.log(`   > 记录已放行 (Released)`);
+            }
+
+            console.log(`✅ 流程结束: ${record.recordId.slice(0, 10)}...`);
         } catch (error) {
             if (error.reason && error.reason.includes("already exists")) {
                 console.log(`⚠️ 记录已存在`);
-                // 如果是因为记录存在而 revert，说明交易其实执行了（或者在模拟执行时失败），
-                // 如果是 revert，nonce 通常会被消耗（如果上链了）。
-                // 但如果是 call static 检查失败，nonce 没消耗。
-                // Ethers v6 默认会先 estimateGas，如果 revert，则不发送交易，nonce 不消耗。
-                // 所以这里不增加 nonce 是对的。
             } else {
                 console.error(`❌ 添加失败:`, error.reason || error.message);
                 
@@ -251,6 +325,7 @@ async function main() {
                 if (error.message && error.message.includes("nonce")) {
                     console.log("🔄 检测到 Nonce 错误，重新获取 Nonce...");
                     currentNonce = await contract.runner.getNonce();
+                    inspectorNonce = await inspectorWallet.getNonce();
                 }
             }
         }

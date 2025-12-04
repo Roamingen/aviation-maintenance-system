@@ -1,4 +1,9 @@
-<template>
+const fs = require('fs');
+const path = require('path');
+
+const filePath = path.join(__dirname, 'frontend/src/components/RecordSearch.vue');
+
+const newContent = `<template>
   <div class="record-search">
     <el-card class="search-card">
       <template #header>
@@ -167,7 +172,7 @@ const filteredMechanicRecords = computed(() => {
 const searchByRecordId = async () => {
   if (!searchRecordId.value) return
   try {
-    const res = await axios.get(`http://localhost:3000/api/record/${searchRecordId.value}`)
+    const res = await axios.get(\`http://localhost:3000/api/record/\${searchRecordId.value}\`)
     if (res.data.success) {
       recordResult.value = res.data.data
     } else {
@@ -184,7 +189,7 @@ const searchByAircraft = async () => {
   if (!searchRegNo.value) return
   searchedAircraft.value = true
   try {
-    const res = await axios.get(`http://localhost:3000/api/aircraft/${searchRegNo.value}`)
+    const res = await axios.get(\`http://localhost:3000/api/aircraft/\${searchRegNo.value}\`)
     if (res.data.success) {
       // 为每条记录添加 expanded 状态控制
       aircraftRecords.value = res.data.data.map(r => ({ ...r, expanded: false }))
@@ -201,7 +206,7 @@ const searchByMechanic = async () => {
   if (!searchMechanic.value) return
   searchedMechanic.value = true
   try {
-    const res = await axios.get(`http://localhost:3000/api/mechanic/${searchMechanic.value}`)
+    const res = await axios.get(\`http://localhost:3000/api/mechanic/\${searchMechanic.value}\`)
     if (res.data.success) {
       mechanicRecords.value = res.data.data.map(r => ({ ...r, expanded: false }))
     } else {
@@ -247,3 +252,7 @@ const filterMechanicRecords = () => {
     margin-bottom: 20px;
 }
 </style>
+`;
+
+fs.writeFileSync(filePath, newContent, 'utf8');
+console.log('RecordSearch.vue updated successfully');

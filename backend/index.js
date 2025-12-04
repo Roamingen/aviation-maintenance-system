@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { ethers } = require('ethers'); // 引入 ethers
-const { contract } = require('./config');
+const { contract, CONTRACT_ADDRESS, ABI } = require('./config');
 
 const app = express();
 const PORT = 3000;
@@ -10,6 +10,15 @@ app.use(cors());
 app.use(express.json());
 
 // ================= API 路由 =================
+
+// 0. 获取合约配置 (供前端使用)
+app.get('/api/config', (req, res) => {
+    res.json({
+        success: true,
+        address: CONTRACT_ADDRESS,
+        abi: ABI
+    });
+});
 
 // 1. 健康检查
 app.get('/', (req, res) => {
@@ -107,6 +116,7 @@ app.post('/api/record', async (req, res) => {
         // 补充合约结构体所需的占位符字段 (ethers.js 编码需要，虽然合约会覆盖)
         recordData.recorder = "0x0000000000000000000000000000000000000000";
         recordData.timestamp = 0;
+        recordData.status = 0; // RecordStatus.Pending
 
         // 确保可选结构体存在，防止 ethers.js 报错
         if (!recordData.usedParts) recordData.usedParts = [];
@@ -115,18 +125,33 @@ app.post('/api/record', async (req, res) => {
         if (!recordData.replaceInfo) recordData.replaceInfo = [];
         if (!recordData.faultInfo) recordData.faultInfo = { fimCode: "", faultDescription: "" };
         
-        // 确保 signatures 存在
+        // 确保 signatures 存在并符合新结构
+        const zeroAddr = "0x0000000000000000000000000000000000000000";
         if (!recordData.signatures) {
-            recordData.signatures = { performedBy: "", performTime: 0, inspectedBy: "", riiBy: "", releaseBy: "" };
+            recordData.signatures = { 
+                performedBy: zeroAddr, performedByName: "", performedById: "", performTime: 0,
+                inspectedBy: zeroAddr, inspectedByName: "", inspectedById: "",
+                riiBy: zeroAddr, riiByName: "", riiById: "",
+                releaseBy: zeroAddr, releaseByName: "", releaseById: "", releaseTime: 0
+            };
         } else {
-            // 确保 signatures 内部字段存在
+            // 适配前端可能传来的旧数据或新数据
             const s = recordData.signatures;
             recordData.signatures = {
-                performedBy: s.performedBy || "",
-                performTime: s.performTime || 0,
-                inspectedBy: s.inspectedBy || "",
-                riiBy: s.riiBy || "",
-                releaseBy: s.releaseBy || ""
+                performedBy: zeroAddr, // 合约会覆盖为 msg.sender
+                performedByName: s.performedByName || s.performedBy || "", // 兼容旧字段
+                performedById: s.performedById || "", // 新增工号
+                performTime: 0,
+                inspectedBy: zeroAddr,
+                inspectedByName: "",
+                inspectedById: "",
+                riiBy: zeroAddr,
+                riiByName: "",
+                riiById: "",
+                releaseBy: zeroAddr,
+                releaseByName: "",
+                releaseById: "",
+                releaseTime: 0
             };
         }
 

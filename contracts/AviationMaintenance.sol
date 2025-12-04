@@ -20,12 +20,26 @@ contract AviationMaintenance {
         string faultDescription; // 故障描述
     }
 
+    enum RecordStatus {
+        Pending,
+        Released
+    }
+
     struct Signatures {
-        string performedBy; // 工作者
+        address performedBy; // 工作者地址 (0x...)
+        string performedByName; // 工作者姓名
+        string performedById; // 工作者工号 (新增)
         uint256 performTime; // 工作时间
-        string inspectedBy; // 互检人员
-        string riiBy; // 必检项目检验员
-        string releaseBy; // 放行人员
+        address inspectedBy; // 互检人员地址
+        string inspectedByName; // 互检人员姓名
+        string inspectedById; // 互检人员工号 (新增)
+        address riiBy; // 必检人员地址
+        string riiByName; // 必检人员姓名
+        string riiById; // 必检人员工号 (新增)
+        address releaseBy; // 放行人员地址
+        string releaseByName; // 放行人员姓名
+        string releaseById; // 放行人员工号 (新增)
+        uint256 releaseTime; // 放行时间
     }
 
     struct ReplaceInfo {
@@ -59,6 +73,7 @@ contract AviationMaintenance {
         ReplaceInfo[] replaceInfo;
         address recorder; // 记录人(区块链地址)
         uint256 timestamp; // 上链时间
+        RecordStatus status; // 记录状态
     }
 
     // ================= 状态变量 =================
@@ -119,7 +134,7 @@ contract AviationMaintenance {
         emit NodeAuthorized(_node, _status);
     }
 
-    // 添加检修记录
+    // 添加检修记录 (工作者签名)
     function addRecord(MaintenanceRecord memory _record) public onlyAuthorized {
         require(!recordExists[_record.recordId], "Record ID already exists");
 
@@ -136,9 +151,30 @@ contract AviationMaintenance {
         newRecord.workDescription = _record.workDescription;
         newRecord.referenceDocument = _record.referenceDocument;
         newRecord.faultInfo = _record.faultInfo;
-        newRecord.signatures = _record.signatures;
+
+        // 强制使用 msg.sender 作为工作者地址
+        newRecord.signatures.performedBy = msg.sender;
+        newRecord.signatures.performedByName = _record
+            .signatures
+            .performedByName;
+        newRecord.signatures.performedById = _record.signatures.performedById; // 保存工号
+        newRecord.signatures.performTime = block.timestamp;
+
+        // 初始化其他签名为空
+        newRecord.signatures.inspectedBy = address(0);
+        newRecord.signatures.inspectedByName = "";
+        newRecord.signatures.inspectedById = "";
+        newRecord.signatures.riiBy = address(0);
+        newRecord.signatures.riiByName = "";
+        newRecord.signatures.riiById = "";
+        newRecord.signatures.releaseBy = address(0);
+        newRecord.signatures.releaseByName = "";
+        newRecord.signatures.releaseById = "";
+        newRecord.signatures.releaseTime = 0;
+
         newRecord.recorder = msg.sender;
         newRecord.timestamp = block.timestamp;
+        newRecord.status = RecordStatus.Pending;
 
         for (uint i = 0; i < _record.usedParts.length; i++) {
             newRecord.usedParts.push(_record.usedParts[i]);
@@ -156,7 +192,9 @@ contract AviationMaintenance {
         // 更新索引
         aircraftRecords[_record.aircraftRegNo].push(_record.recordId);
         jobCardRecords[_record.jobCardNo].push(_record.recordId);
-        mechanicRecords[_record.signatures.performedBy].push(_record.recordId);
+        mechanicRecords[_record.signatures.performedByName].push(
+            _record.recordId
+        ); // 使用名字索引
         recordExists[_record.recordId] = true;
 
         emit RecordAdded(
@@ -164,6 +202,45 @@ contract AviationMaintenance {
             _record.aircraftRegNo,
             _record.jobCardNo
         );
+    }
+
+    // 互检人员签名
+    function signInspection(
+        string memory _recordId,
+        string memory _name,
+        string memory _empId
+    ) public onlyAuthorized {
+        require(recordExists[_recordId], "Record not found");
+        MaintenanceRecord storage r = records[_recordId];
+        require(r.status == RecordStatus.Pending, "Record already released");
+        require(
+            r.signatures.performedBy != msg.sender,
+            "Inspector cannot be performer"
+        );
+
+        r.signatures.inspectedBy = msg.sender;
+        r.signatures.inspectedByName = _name;
+        r.signatures.inspectedById = _empId;
+    }
+
+    // 放行人员签名 (最终放行)
+    function signRelease(
+        string memory _recordId,
+        string memory _name,
+        string memory _empId
+    ) public onlyAuthorized {
+        require(recordExists[_recordId], "Record not found");
+        MaintenanceRecord storage r = records[_recordId];
+        require(r.status == RecordStatus.Pending, "Record already released");
+
+        // 可以在这里添加逻辑：必须先互检才能放行 (如果需要)
+        // require(r.signatures.inspectedBy != address(0), "Inspection required");
+
+        r.signatures.releaseBy = msg.sender;
+        r.signatures.releaseByName = _name;
+        r.signatures.releaseById = _empId;
+        r.signatures.releaseTime = block.timestamp;
+        r.status = RecordStatus.Released;
     }
 
     // 1. 根据 Record ID 查询详情

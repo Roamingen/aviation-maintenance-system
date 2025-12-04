@@ -151,13 +151,13 @@
       <el-divider content-position="left">签署信息</el-divider>
       <el-row :gutter="20">
         <el-col :span="12">
-          <el-form-item label="工作者签名" required>
-            <el-input v-model="form.signatures.performedBy" />
+          <el-form-item label="工作者姓名" required>
+            <el-input v-model="form.signatures.performedByName" placeholder="请输入姓名" />
           </el-form-item>
         </el-col>
         <el-col :span="12">
-          <el-form-item label="放行人员">
-            <el-input v-model="form.signatures.releaseBy" />
+          <el-form-item label="工作者工号" required>
+            <el-input v-model="form.signatures.performedById" placeholder="请输入工号" />
           </el-form-item>
         </el-col>
       </el-row>
@@ -196,11 +196,19 @@ const form = reactive({
     faultDescription: ''
   },
   signatures: {
-    performedBy: '',
+    performedByName: '',
+    performedById: '',
     performTime: 0,
     inspectedBy: '',
+    inspectedByName: '',
+    inspectedById: '',
     riiBy: '',
-    releaseBy: ''
+    riiByName: '',
+    riiById: '',
+    releaseBy: '',
+    releaseByName: '',
+    releaseById: '',
+    releaseTime: 0
   },
   replaceInfo: []
 })
@@ -222,8 +230,8 @@ const addReplaceInfo = () => form.replaceInfo.push({
 const removeReplaceInfo = (index) => form.replaceInfo.splice(index, 1)
 
 const submitForm = async () => {
-  if (!form.aircraftRegNo || !form.workDescription || !form.signatures.performedBy) {
-    ElMessage.error('请填写必填项 (飞机号、工作描述、工作者签名)')
+  if (!form.aircraftRegNo || !form.workDescription || !form.signatures.performedByName || !form.signatures.performedById) {
+    ElMessage.error('请填写必填项 (飞机号、工作描述、工作者姓名、工号)')
     return
   }
 
