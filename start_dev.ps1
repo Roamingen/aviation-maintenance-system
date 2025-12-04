@@ -1,46 +1,50 @@
-# 1. 定义路径
+# 1. Define paths
 $projectRoot = Get-Location
 $backendConfigPath = Join-Path $projectRoot "backend\config.js"
 
-Write-Host "=== 正在启动航空维修系统开发环境 ===" -ForegroundColor Cyan
+Write-Host "=== Starting Aviation Maintenance System Dev Environment ===" -ForegroundColor Cyan
 
-# 2. 启动 Hardhat 节点 (新窗口)
-Write-Host "1. 启动 Hardhat 本地节点..." -ForegroundColor Green
+# 2. Start Hardhat Node (New Window)
+Write-Host "1. Starting Hardhat Local Node..." -ForegroundColor Green
 Start-Process cmd -ArgumentList "/k npx hardhat node"
-Write-Host "   等待 5 秒让节点完全启动..."
+Write-Host "   Waiting 5 seconds for node to start..."
 Start-Sleep -Seconds 5
 
-# 3. 部署合约
-Write-Host "2. 正在部署智能合约..." -ForegroundColor Green
+# 3. Deploy Contract
+Write-Host "2. Deploying Smart Contract..." -ForegroundColor Green
 $deployOutput = npx hardhat run scripts/deploy.js --network localhost
 $deployOutputString = $deployOutput | Out-String
 Write-Host $deployOutputString
 
-# 4. 提取合约地址并更新配置
+# 4. Extract Address and Update Config
 if ($deployOutputString -match "AviationMaintenance deployed to (0x[a-fA-F0-9]{40})") {
     $newAddress = $matches[1]
-    Write-Host "   检测到新合约地址: $newAddress" -ForegroundColor Yellow
+    Write-Host "   Detected new contract address: $newAddress" -ForegroundColor Yellow
     
-    # 读取 config.js
+    # Read config.js
     $configContent = Get-Content $backendConfigPath -Raw
     
-    # 替换地址 (使用正则确保匹配 const CONTRACT_ADDRESS = "...")
-    $newConfigContent = $configContent -replace 'const CONTRACT_ADDRESS = ".*"', "const CONTRACT_ADDRESS = `"$newAddress`";"
+    # Replace address
+    # Use regex to match the entire line after 'const CONTRACT_ADDRESS =' to handle potential trailing semicolons
+    $newConfigContent = $configContent -replace 'const CONTRACT_ADDRESS = .*', "const CONTRACT_ADDRESS = `"$newAddress`";"
     
-    # 写回文件
+    # Prevent accumulation of newlines (Set-Content adds one)
+    $newConfigContent = $newConfigContent.TrimEnd()
+
+    # Write back
     Set-Content -Path $backendConfigPath -Value $newConfigContent
-    Write-Host "   已更新 backend/config.js" -ForegroundColor Yellow
+    Write-Host "   Updated backend/config.js" -ForegroundColor Yellow
 }
 else {
-    Write-Host "   警告: 未能从输出中提取合约地址，请手动检查配置。" -ForegroundColor Red
+    Write-Host "   WARNING: Could not extract contract address. Please check config manually." -ForegroundColor Red
 }
 
-# 5. 启动后端 (新窗口)
-Write-Host "3. 启动后端服务..." -ForegroundColor Green
+# 5. Start Backend (New Window)
+Write-Host "3. Starting Backend Service..." -ForegroundColor Green
 Start-Process cmd -ArgumentList "/k cd backend && node index.js"
 
-# 6. 启动前端 (新窗口)
-Write-Host "4. 启动前端服务..." -ForegroundColor Green
+# 6. Start Frontend (New Window)
+Write-Host "4. Starting Frontend Service..." -ForegroundColor Green
 Start-Process cmd -ArgumentList "/k cd frontend && npm run dev"
 
-Write-Host "=== 所有服务已启动 ===" -ForegroundColor Cyan
+Write-Host "=== All Services Started ===" -ForegroundColor Cyan
