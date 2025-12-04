@@ -165,7 +165,7 @@ app.post('/api/record', async (req, res) => {
         if (!recordData.signatures) {
             recordData.signatures = { 
                 performedBy: zeroAddr, performedByName: "", performedById: "", performTime: 0,
-                inspectedByPeerCheck: zeroAddr, inspectedByPeerCheckName: "", inspectedByPeerCheckId: "",
+                peerChecks: [], // 新增: 互检人员列表
                 riiBy: zeroAddr, riiByName: "", riiById: "",
                 releaseBy: zeroAddr, releaseByName: "", releaseById: "", releaseTime: 0
             };
@@ -177,9 +177,7 @@ app.post('/api/record', async (req, res) => {
                 performedByName: s.performedByName || s.performedBy || "", // 兼容旧字段
                 performedById: s.performedById || "", // 新增工号
                 performTime: s.performTime || 0, // 使用前端传来的时间
-                inspectedByPeerCheck: zeroAddr,
-                inspectedByPeerCheckName: "",
-                inspectedByPeerCheckId: "",
+                peerChecks: [], // 初始化为空数组
                 riiBy: zeroAddr,
                 riiByName: "",
                 riiById: "",
@@ -209,25 +207,53 @@ app.post('/api/record', async (req, res) => {
 
 // 辅助函数：处理 BigInt 序列化问题
 function convertBigIntToString(obj) {
+    if (obj === null || obj === undefined) return obj;
+    
     if (typeof obj === 'bigint') {
         return obj.toString();
     }
-    // 尝试将 Ethers Result 转换为普通对象 (如果有命名键)
-    if (obj && typeof obj.toObject === 'function') {
+    
+    // 尝试将 Ethers Result 转换为普通对象
+    if (typeof obj.toObject === 'function') {
         try {
-            return convertBigIntToString(obj.toObject());
+            const converted = obj.toObject();
+            // 检查转换后的对象是否有效
+            // 如果是数组类型的 Result (如 PeerCheckSignature[])，toObject() 可能会返回 { _: ... } 或空对象
+            // 这种情况下我们应该把它当作数组处理
+            if (converted && typeof converted === 'object' && !Array.isArray(converted)) {
+                const keys = Object.keys(converted);
+                const hasInvalidKeys = keys.some(k => k === '_');
+                // 如果包含无效键 '_'，或者转换为空对象但原对象是数组且有长度，说明转换不完全，应视为数组
+                if (hasInvalidKeys || (keys.length === 0 && obj.length > 0)) {
+                    return Array.from(obj).map(convertBigIntToString);
+                }
+                // 否则视为结构体
+                return convertBigIntToString(converted);
+            }
+            // 如果 toObject 直接返回数组 (不太常见但可能)
+            if (Array.isArray(converted)) {
+                return convertBigIntToString(converted);
+            }
         } catch (e) {
-            // 如果转换失败 (例如纯数组没有命名键)，则忽略错误，继续按数组处理
+            console.warn("Failed to convert Result to object:", e);
         }
     }
+    
     if (Array.isArray(obj)) {
         return obj.map(convertBigIntToString);
     }
-    if (typeof obj === 'object' && obj !== null) {
-        return Object.fromEntries(
-            Object.entries(obj).map(([k, v]) => [k, convertBigIntToString(v)])
-        );
+    
+    if (typeof obj === 'object') {
+        const newObj = {};
+        for (const key in obj) {
+            // 避免遍历原型链
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                newObj[key] = convertBigIntToString(obj[key]);
+            }
+        }
+        return newObj;
     }
+    
     return obj;
 }
 

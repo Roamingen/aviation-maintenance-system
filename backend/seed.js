@@ -289,9 +289,7 @@ async function main() {
                 performedByName: record.signatures.performedByName,
                 performedById: record.signatures.performedById, // 确保这里正确传递了工号
                 performTime: record.signatures.performTime || Math.floor(Date.now() / 1000), // 使用预设时间或当前时间
-                inspectedByPeerCheck: zeroAddr,
-                inspectedByPeerCheckName: "", // 初始为空，后续签名时填入
-                inspectedByPeerCheckId: "",
+                peerChecks: [], // 初始化为空数组
                 riiBy: zeroAddr,
                 riiByName: "",
                 riiById: "",

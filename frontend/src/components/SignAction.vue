@@ -7,11 +7,16 @@
       <p>当前钱包: {{ walletState.address }}</p>
       
       <!-- Peer Check -->
-      <div v-if="canSignPeerCheck" class="action-box">
+      <div class="action-box">
         <h4>互检签名 (Peer Check)</h4>
-        <el-input v-model="inspectorName" placeholder="请输入互检人员姓名" style="margin-bottom: 10px;" />
-        <el-input v-model="inspectorId" placeholder="请输入互检人员工号" style="margin-bottom: 10px;" />
-        <el-button type="warning" @click="handleSignPeerCheck" :loading="loading">签署互检</el-button>
+        <div v-if="canSignPeerCheck">
+            <el-input v-model="inspectorName" placeholder="请输入互检人员姓名" style="margin-bottom: 10px;" />
+            <el-input v-model="inspectorId" placeholder="请输入互检人员工号" style="margin-bottom: 10px;" />
+            <el-button type="warning" @click="handleSignPeerCheck" :loading="loadingPeerCheck">签署互检</el-button>
+        </div>
+        <div v-else>
+            <el-alert :title="'无法签署互检: ' + canSignPeerCheckReason" type="info" :closable="false" />
+        </div>
       </div>
 
       <!-- RII Check -->
@@ -19,7 +24,7 @@
         <h4>必检签名 (RII)</h4>
         <el-input v-model="riiName" placeholder="请输入必检人员姓名" style="margin-bottom: 10px;" />
         <el-input v-model="riiId" placeholder="请输入必检人员工号" style="margin-bottom: 10px;" />
-        <el-button type="danger" @click="handleSignRII" :loading="loading">签署必检</el-button>
+        <el-button type="danger" @click="handleSignRII" :loading="loadingRII">签署必检</el-button>
       </div>
 
       <!-- Release -->
@@ -27,7 +32,7 @@
         <h4>放行签名</h4>
         <el-input v-model="releaserName" placeholder="请输入放行人员姓名" style="margin-bottom: 10px;" />
         <el-input v-model="releaserId" placeholder="请输入放行人员工号" style="margin-bottom: 10px;" />
-        <el-button type="success" @click="handleSignRelease" :loading="loading">签署放行</el-button>
+        <el-button type="success" @click="handleSignRelease" :loading="loadingRelease">签署放行</el-button>
       </div>
       
       <div v-if="!canSignPeerCheck && !canSignRII && !canSignRelease && recordStatus === 0">
@@ -63,7 +68,9 @@ const riiName = ref('')
 const riiId = ref('')
 const releaserName = ref('')
 const releaserId = ref('')
-const loading = ref(false)
+const loadingPeerCheck = ref(false)
+const loadingRII = ref(false)
+const loadingRelease = ref(false)
 const contractConfig = ref(null)
 
 // connectWallet moved to App.vue
@@ -93,10 +100,41 @@ onMounted(() => {
 const canSignPeerCheck = computed(() => {
   // Status must be Pending (0)
   if (props.recordStatus !== 0) return false
+  if (!walletState.address) return false
   
-  // Check if inspectedByPeerCheck is empty
-  const peerCheckBy = props.signatures?.inspectedByPeerCheck
-  return !peerCheckBy || peerCheckBy === '0x0000000000000000000000000000000000000000'
+  const currentAddr = walletState.address.toLowerCase()
+
+  // Check if performer is current user
+  if (props.signatures?.performedBy && props.signatures.performedBy.toLowerCase() === currentAddr) {
+      return false
+  }
+
+  // Check if already signed in peerChecks list
+  if (props.signatures?.peerChecks && props.signatures.peerChecks.length > 0) {
+      const hasSigned = props.signatures.peerChecks.some(p => p.inspector.toLowerCase() === currentAddr)
+      if (hasSigned) return false
+  }
+  
+  // 只要没放行，且当前用户没签过，就可以签
+  return true
+})
+
+const canSignPeerCheckReason = computed(() => {
+  if (props.recordStatus !== 0) return "记录已放行"
+  if (!walletState.address) return "未连接钱包"
+  
+  const currentAddr = walletState.address.toLowerCase()
+
+  if (props.signatures?.performedBy && props.signatures.performedBy.toLowerCase() === currentAddr) {
+      return "工作者不能进行互检"
+  }
+
+  if (props.signatures?.peerChecks && props.signatures.peerChecks.length > 0) {
+      const hasSigned = props.signatures.peerChecks.some(p => p.inspector.toLowerCase() === currentAddr)
+      if (hasSigned) return "您已签署过互检"
+  }
+  
+  return ""
 })
 
 const canSignRII = computed(() => {
@@ -134,7 +172,7 @@ const getContract = async () => {
 
 const handleSignPeerCheck = async () => {
     if (!inspectorName.value || !inspectorId.value) return ElMessage.warning("请输入姓名和工号")
-    loading.value = true
+    loadingPeerCheck.value = true
     try {
         const contract = await getContract()
         const tx = await contract.signPeerCheck(props.recordId, inspectorName.value, inspectorId.value, {
@@ -147,13 +185,13 @@ const handleSignPeerCheck = async () => {
         console.error(e)
         ElMessage.error("签名失败: " + (e.reason || e.message))
     } finally {
-        loading.value = false
+        loadingPeerCheck.value = false
     }
 }
 
 const handleSignRII = async () => {
     if (!riiName.value || !riiId.value) return ElMessage.warning("请输入姓名和工号")
-    loading.value = true
+    loadingRII.value = true
     try {
         const contract = await getContract()
         const tx = await contract.signRII(props.recordId, riiName.value, riiId.value, {
@@ -166,13 +204,13 @@ const handleSignRII = async () => {
         console.error(e)
         ElMessage.error("签名失败: " + (e.reason || e.message))
     } finally {
-        loading.value = false
+        loadingRII.value = false
     }
 }
 
 const handleSignRelease = async () => {
     if (!releaserName.value || !releaserId.value) return ElMessage.warning("请输入姓名和工号")
-    loading.value = true
+    loadingRelease.value = true
     try {
         const contract = await getContract()
         // 显式指定 gasLimit
@@ -186,7 +224,7 @@ const handleSignRelease = async () => {
         console.error(e)
         ElMessage.error("签名失败: " + (e.reason || e.message))
     } finally {
-        loading.value = false
+        loadingRelease.value = false
     }
 }
 </script>

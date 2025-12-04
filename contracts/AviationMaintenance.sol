@@ -20,6 +20,13 @@ contract AviationMaintenance {
         string faultDescription; // 故障描述
     }
 
+    struct PeerCheckSignature {
+        address inspector;
+        string name;
+        string id;
+        uint256 time;
+    }
+
     enum RecordStatus {
         Pending,
         Released
@@ -30,9 +37,7 @@ contract AviationMaintenance {
         string performedByName; // 工作者姓名
         string performedById; // 工作者工号 (新增)
         uint256 performTime; // 工作时间
-        address inspectedByPeerCheck; // 互检人员地址 (原 inspectedBy)
-        string inspectedByPeerCheckName; // 互检人员姓名
-        string inspectedByPeerCheckId; // 互检人员工号
+        PeerCheckSignature[] peerChecks; // 互检人员列表 (支持多人)
         address riiBy; // 必检人员地址
         string riiByName; // 必检人员姓名
         string riiById; // 必检人员工号 (新增)
@@ -166,9 +171,8 @@ contract AviationMaintenance {
         newRecord.signatures.performTime = _record.signatures.performTime; // 使用传入的时间作为工作时间
 
         // 初始化其他签名为空
-        newRecord.signatures.inspectedByPeerCheck = address(0);
-        newRecord.signatures.inspectedByPeerCheckName = "";
-        newRecord.signatures.inspectedByPeerCheckId = "";
+        // peerChecks 默认为空数组，无需显式初始化
+
         newRecord.signatures.riiBy = address(0);
         newRecord.signatures.riiByName = "";
         newRecord.signatures.riiById = "";
@@ -224,9 +228,22 @@ contract AviationMaintenance {
             "Inspector cannot be performer"
         );
 
-        r.signatures.inspectedByPeerCheck = msg.sender;
-        r.signatures.inspectedByPeerCheckName = _name;
-        r.signatures.inspectedByPeerCheckId = _empId;
+        // 检查是否已经签过名
+        for (uint i = 0; i < r.signatures.peerChecks.length; i++) {
+            require(
+                r.signatures.peerChecks[i].inspector != msg.sender,
+                "Already signed peer check"
+            );
+        }
+
+        r.signatures.peerChecks.push(
+            PeerCheckSignature({
+                inspector: msg.sender,
+                name: _name,
+                id: _empId,
+                time: block.timestamp
+            })
+        );
     }
 
     // 必检人员签名 (RII)
