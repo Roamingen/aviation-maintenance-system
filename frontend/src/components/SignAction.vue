@@ -6,12 +6,20 @@
     <div v-else>
       <p>当前钱包: {{ walletAddress }}</p>
       
-      <!-- Inspection -->
-      <div v-if="canSignInspect" class="action-box">
-        <h4>检验签名</h4>
-        <el-input v-model="inspectorName" placeholder="请输入检验员姓名" style="margin-bottom: 10px;" />
-        <el-input v-model="inspectorId" placeholder="请输入检验员工号" style="margin-bottom: 10px;" />
-        <el-button type="warning" @click="handleSignInspect" :loading="loading">签署检验</el-button>
+      <!-- Peer Check -->
+      <div v-if="canSignPeerCheck" class="action-box">
+        <h4>互检签名 (Peer Check)</h4>
+        <el-input v-model="inspectorName" placeholder="请输入互检人员姓名" style="margin-bottom: 10px;" />
+        <el-input v-model="inspectorId" placeholder="请输入互检人员工号" style="margin-bottom: 10px;" />
+        <el-button type="warning" @click="handleSignPeerCheck" :loading="loading">签署互检</el-button>
+      </div>
+
+      <!-- RII Check -->
+      <div v-if="canSignRII" class="action-box">
+        <h4>必检签名 (RII)</h4>
+        <el-input v-model="riiName" placeholder="请输入必检人员姓名" style="margin-bottom: 10px;" />
+        <el-input v-model="riiId" placeholder="请输入必检人员工号" style="margin-bottom: 10px;" />
+        <el-button type="danger" @click="handleSignRII" :loading="loading">签署必检</el-button>
       </div>
 
       <!-- Release -->
@@ -22,7 +30,7 @@
         <el-button type="success" @click="handleSignRelease" :loading="loading">签署放行</el-button>
       </div>
       
-      <div v-if="!canSignInspect && !canSignRelease && recordStatus === 0">
+      <div v-if="!canSignPeerCheck && !canSignRII && !canSignRelease && recordStatus === 0">
         <el-alert title="当前状态无需签名或您无权签名" type="info" :closable="false" />
       </div>
        <div v-if="recordStatus === 1">
@@ -41,7 +49,8 @@ import axios from 'axios'
 const props = defineProps({
   recordId: String,
   recordStatus: Number, // 0: Pending, 1: Released
-  signatures: Object
+  signatures: Object,
+  isRII: Boolean
 })
 
 const emit = defineEmits(['refresh'])
@@ -49,6 +58,8 @@ const emit = defineEmits(['refresh'])
 const walletAddress = ref('')
 const inspectorName = ref('')
 const inspectorId = ref('')
+const riiName = ref('')
+const riiId = ref('')
 const releaserName = ref('')
 const releaserId = ref('')
 const loading = ref(false)
@@ -96,25 +107,38 @@ onMounted(() => {
   }, 500)
 })
 
-const canSignInspect = computed(() => {
+const canSignPeerCheck = computed(() => {
   // Status must be Pending (0)
   if (props.recordStatus !== 0) return false
   
-  // Check if inspectedBy is empty (0x000...)
-  const inspectedBy = props.signatures?.inspectedBy
-  // If inspectedBy is 0x0...0, then it needs inspection (or is available for inspection)
-  // Note: In this simplified logic, we allow anyone to sign as inspector if it's not signed yet.
-  return !inspectedBy || inspectedBy === '0x0000000000000000000000000000000000000000'
+  // Check if inspectedByPeerCheck is empty
+  const peerCheckBy = props.signatures?.inspectedByPeerCheck
+  return !peerCheckBy || peerCheckBy === '0x0000000000000000000000000000000000000000'
+})
+
+const canSignRII = computed(() => {
+  // Status must be Pending (0)
+  if (props.recordStatus !== 0) return false
+  // Only if RII is required
+  if (!props.isRII) return false
+
+  // Check if riiBy is empty
+  const riiBy = props.signatures?.riiBy
+  return !riiBy || riiBy === '0x0000000000000000000000000000000000000000'
 })
 
 const canSignRelease = computed(() => {
   // Status must be Pending (0)
   if (props.recordStatus !== 0) return false
   
-  // Can release if inspection is done OR if we don't enforce inspection strictly in UI (contract enforces logic)
-  // But usually release comes after inspection.
-  // Let's allow release if inspection is signed OR if we want to allow skipping (contract allows skipping if logic permits)
-  // Contract: require(r.status == RecordStatus.Pending)
+  // If RII is required, it must be signed first
+  if (props.isRII) {
+      const riiBy = props.signatures?.riiBy
+      if (!riiBy || riiBy === '0x0000000000000000000000000000000000000000') {
+          return false
+      }
+  }
+  
   return true
 })
 
@@ -125,18 +149,35 @@ const getContract = async () => {
     return new ethers.Contract(contractConfig.value.address, contractConfig.value.abi, signer)
 }
 
-const handleSignInspect = async () => {
+const handleSignPeerCheck = async () => {
     if (!inspectorName.value || !inspectorId.value) return ElMessage.warning("请输入姓名和工号")
     loading.value = true
     try {
         const contract = await getContract()
-        // 显式指定 gasLimit，防止 MetaMask 估算失败导致无法点击确认
-        // 同时也避免 "Request blocked due to spam filter" 这种误报
-        const tx = await contract.signInspection(props.recordId, inspectorName.value, inspectorId.value, {
+        const tx = await contract.signPeerCheck(props.recordId, inspectorName.value, inspectorId.value, {
             gasLimit: 300000 
         })
         await tx.wait()
-        ElMessage.success("检验签名成功")
+        ElMessage.success("互检签名成功")
+        emit('refresh')
+    } catch (e) {
+        console.error(e)
+        ElMessage.error("签名失败: " + (e.reason || e.message))
+    } finally {
+        loading.value = false
+    }
+}
+
+const handleSignRII = async () => {
+    if (!riiName.value || !riiId.value) return ElMessage.warning("请输入姓名和工号")
+    loading.value = true
+    try {
+        const contract = await getContract()
+        const tx = await contract.signRII(props.recordId, riiName.value, riiId.value, {
+            gasLimit: 300000 
+        })
+        await tx.wait()
+        ElMessage.success("必检签名成功")
         emit('refresh')
     } catch (e) {
         console.error(e)

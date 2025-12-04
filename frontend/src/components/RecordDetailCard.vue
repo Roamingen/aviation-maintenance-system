@@ -83,13 +83,23 @@
             <div>{{ record.signatures?.performedByName }} (ID: {{ record.signatures?.performedById }})</div>
             <div style="font-size: 0.8em; color: #999;">{{ record.signatures?.performedBy }}</div>
           </el-descriptions-item>
-          <el-descriptions-item label="检验员" :span="2">
-            <div v-if="record.signatures?.inspectedByName">
-                {{ record.signatures?.inspectedByName }} (ID: {{ record.signatures?.inspectedById }})
-                <div style="font-size: 0.8em; color: #999;">{{ record.signatures?.inspectedBy }}</div>
+          <el-descriptions-item label="互检人员 (Peer Check)" :span="2">
+            <div v-if="record.signatures?.inspectedByPeerCheckName">
+                {{ record.signatures?.inspectedByPeerCheckName }} (ID: {{ record.signatures?.inspectedByPeerCheckId }})
+                <div style="font-size: 0.8em; color: #999;">{{ record.signatures?.inspectedByPeerCheck }}</div>
             </div>
             <div v-else>
                 <el-tag type="info" size="small">未签署</el-tag>
+            </div>
+          </el-descriptions-item>
+          <el-descriptions-item label="必检人员 (RII)" :span="2">
+            <div v-if="record.signatures?.riiByName">
+                {{ record.signatures?.riiByName }} (ID: {{ record.signatures?.riiById }})
+                <div style="font-size: 0.8em; color: #999;">{{ record.signatures?.riiBy }}</div>
+            </div>
+            <div v-else>
+                <el-tag v-if="record.isRII" type="warning" size="small">待签署 (必检项目)</el-tag>
+                <el-tag v-else type="info" size="small">无需签署</el-tag>
             </div>
           </el-descriptions-item>
           <el-descriptions-item label="放行人员" :span="2">
@@ -109,6 +119,7 @@
             :recordId="record.recordId" 
             :recordStatus="Number(record.status)" 
             :signatures="record.signatures"
+            :isRII="record.isRII"
             @refresh="$emit('refresh')"
         />
       </div>

@@ -30,9 +30,9 @@ contract AviationMaintenance {
         string performedByName; // 工作者姓名
         string performedById; // 工作者工号 (新增)
         uint256 performTime; // 工作时间
-        address inspectedBy; // 互检人员地址
-        string inspectedByName; // 互检人员姓名
-        string inspectedById; // 互检人员工号 (新增)
+        address inspectedByPeerCheck; // 互检人员地址 (原 inspectedBy)
+        string inspectedByPeerCheckName; // 互检人员姓名
+        string inspectedByPeerCheckId; // 互检人员工号
         address riiBy; // 必检人员地址
         string riiByName; // 必检人员姓名
         string riiById; // 必检人员工号 (新增)
@@ -64,6 +64,7 @@ contract AviationMaintenance {
         string location; // 7. 工作地点
         string workDescription; // 8. 工作内容描述
         string referenceDocument; // 9. 依据文件
+        bool isRII; // 10. 是否为必检项目 (新增)
         // 嵌套结构体
         PartInfo[] usedParts;
         string[] usedTools;
@@ -150,6 +151,7 @@ contract AviationMaintenance {
         newRecord.location = _record.location;
         newRecord.workDescription = _record.workDescription;
         newRecord.referenceDocument = _record.referenceDocument;
+        newRecord.isRII = _record.isRII; // 保存 RII 状态
         newRecord.faultInfo = _record.faultInfo;
 
         // 强制使用 msg.sender 作为工作者地址
@@ -161,9 +163,9 @@ contract AviationMaintenance {
         newRecord.signatures.performTime = _record.signatures.performTime; // 使用传入的时间作为工作时间
 
         // 初始化其他签名为空
-        newRecord.signatures.inspectedBy = address(0);
-        newRecord.signatures.inspectedByName = "";
-        newRecord.signatures.inspectedById = "";
+        newRecord.signatures.inspectedByPeerCheck = address(0);
+        newRecord.signatures.inspectedByPeerCheckName = "";
+        newRecord.signatures.inspectedByPeerCheckId = "";
         newRecord.signatures.riiBy = address(0);
         newRecord.signatures.riiByName = "";
         newRecord.signatures.riiById = "";
@@ -204,8 +206,8 @@ contract AviationMaintenance {
         );
     }
 
-    // 互检人员签名
-    function signInspection(
+    // 互检人员签名 (Peer Check)
+    function signPeerCheck(
         string memory _recordId,
         string memory _name,
         string memory _empId
@@ -218,9 +220,29 @@ contract AviationMaintenance {
             "Inspector cannot be performer"
         );
 
-        r.signatures.inspectedBy = msg.sender;
-        r.signatures.inspectedByName = _name;
-        r.signatures.inspectedById = _empId;
+        r.signatures.inspectedByPeerCheck = msg.sender;
+        r.signatures.inspectedByPeerCheckName = _name;
+        r.signatures.inspectedByPeerCheckId = _empId;
+    }
+
+    // 必检人员签名 (RII)
+    function signRII(
+        string memory _recordId,
+        string memory _name,
+        string memory _empId
+    ) public onlyAuthorized {
+        require(recordExists[_recordId], "Record not found");
+        MaintenanceRecord storage r = records[_recordId];
+        require(r.status == RecordStatus.Pending, "Record already released");
+        require(r.isRII, "Not an RII record");
+        require(
+            r.signatures.performedBy != msg.sender,
+            "RII Inspector cannot be performer"
+        );
+
+        r.signatures.riiBy = msg.sender;
+        r.signatures.riiByName = _name;
+        r.signatures.riiById = _empId;
     }
 
     // 放行人员签名 (最终放行)
@@ -233,8 +255,13 @@ contract AviationMaintenance {
         MaintenanceRecord storage r = records[_recordId];
         require(r.status == RecordStatus.Pending, "Record already released");
 
-        // 可以在这里添加逻辑：必须先互检才能放行 (如果需要)
-        // require(r.signatures.inspectedBy != address(0), "Inspection required");
+        // 如果是 RII 项目，必须先有 RII 签名
+        if (r.isRII) {
+            require(
+                r.signatures.riiBy != address(0),
+                "RII signature required before release"
+            );
+        }
 
         r.signatures.releaseBy = msg.sender;
         r.signatures.releaseByName = _name;

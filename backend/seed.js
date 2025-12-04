@@ -274,18 +274,24 @@ async function main() {
             // 暂存后续签名需要的名字
             const inspectorName = record.signatures.inspectedByName;
             const inspectorId = record.signatures.inspectedById;
+            const riiName = record.signatures.riiByName;
+            const riiId = record.signatures.riiById;
             const releaserName = record.signatures.releaseByName;
             const releaserId = record.signatures.releaseById;
             
+            // 随机决定是否为 RII 项目 (为了测试)
+            // 或者根据数据中的 riiByName 是否存在来决定
+            record.isRII = !!(riiName && riiName !== "N/A");
+
             const zeroAddr = "0x0000000000000000000000000000000000000000";
             record.signatures = {
                 performedBy: zeroAddr,
                 performedByName: record.signatures.performedByName,
                 performedById: record.signatures.performedById, // 确保这里正确传递了工号
                 performTime: record.signatures.performTime || Math.floor(Date.now() / 1000), // 使用预设时间或当前时间
-                inspectedBy: zeroAddr,
-                inspectedByName: "", // 初始为空，后续签名时填入
-                inspectedById: "",
+                inspectedByPeerCheck: zeroAddr,
+                inspectedByPeerCheckName: "", // 初始为空，后续签名时填入
+                inspectedByPeerCheckId: "",
                 riiBy: zeroAddr,
                 riiByName: "",
                 riiById: "",
@@ -302,15 +308,23 @@ async function main() {
             await tx.wait();
             console.log(`   > 记录已创建 (Pending)`);
 
-            // 3. 互检签名 (Sign Inspection) - 使用 Inspector 钱包
+            // 3. 互检签名 (Sign Peer Check) - 使用 Inspector 钱包
             if (inspectorName && inspectorName !== "N/A") {
                 console.log(`   > 正在进行互检签名: ${inspectorName} (by Inspector Wallet)...`);
-                const tx2 = await inspectorContract.signInspection(record.recordId, inspectorName, inspectorId, { nonce: inspectorNonce });
+                const tx2 = await inspectorContract.signPeerCheck(record.recordId, inspectorName, inspectorId, { nonce: inspectorNonce });
                 inspectorNonce++;
                 await tx2.wait();
             }
 
-            // 4. 放行签名 (Sign Release) - 使用 Owner 钱包 (或者 Inspector 钱包，这里演示用 Owner)
+            // 4. 必检签名 (Sign RII) - 使用 Inspector 钱包 (如果是 RII)
+            if (record.isRII && riiName && riiName !== "N/A") {
+                console.log(`   > 正在进行必检签名: ${riiName} (by Inspector Wallet)...`);
+                const txRII = await inspectorContract.signRII(record.recordId, riiName, riiId, { nonce: inspectorNonce });
+                inspectorNonce++;
+                await txRII.wait();
+            }
+
+            // 5. 放行签名 (Sign Release) - 使用 Owner 钱包 (或者 Inspector 钱包，这里演示用 Owner)
             if (releaserName) {
                 console.log(`   > 正在进行放行签名: ${releaserName} (by Owner Wallet)...`);
                 const tx3 = await contract.signRelease(record.recordId, releaserName, releaserId, { nonce: currentNonce });

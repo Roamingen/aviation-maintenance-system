@@ -52,6 +52,10 @@
         <el-input v-model="form.referenceDocument" placeholder="AMM, SB, AD..." />
       </el-form-item>
 
+      <el-form-item label="必检项目 (RII)">
+        <el-switch v-model="form.isRII" active-text="是" inactive-text="否" />
+      </el-form-item>
+
       <el-divider content-position="left">航材与工具</el-divider>
       
       <!-- 消耗件列表 -->
@@ -204,6 +208,7 @@ const form = reactive({
   location: '',
   workDescription: '',
   referenceDocument: '',
+  isRII: false,
   usedParts: [],
   usedTools: [],
   testMeasureData: [],
