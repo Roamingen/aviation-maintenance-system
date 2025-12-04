@@ -22,9 +22,9 @@
             <el-icon><Edit /></el-icon>
             <span>录入信息</span>
           </el-menu-item>
-          <el-menu-item index="all">
-            <el-icon><List /></el-icon>
-            <span>所有检修记录</span>
+          <el-menu-item index="account">
+            <el-icon><Setting /></el-icon>
+            <span>账户管理</span>
           </el-menu-item>
         </el-menu>
       </el-aside>
@@ -54,9 +54,7 @@
           <div class="content-wrapper">
             <RecordSearch v-if="currentView === 'search'" />
             <RecordForm v-if="currentView === 'mechanic'" />
-            <div v-if="currentView === 'all'" class="all-records-placeholder">
-              <el-empty description="所有检修记录功能开发中 (需要区块链索引服务支持)" />
-            </div>
+            <AccountManager v-if="currentView === 'account'" />
           </div>
           <div class="footer">
             Blockchain Aviation Maintenance System © 2025
@@ -69,11 +67,12 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { Search, Edit, List } from '@element-plus/icons-vue'
+import { Search, Edit, List, Setting } from '@element-plus/icons-vue'
 import { ethers } from 'ethers'
 import { ElMessage } from 'element-plus'
 import RecordSearch from './components/RecordSearch.vue'
 import RecordForm from './components/RecordForm.vue'
+import AccountManager from './components/AccountManager.vue'
 import { walletState, setWallet } from './walletState'
 
 const currentView = ref('search')

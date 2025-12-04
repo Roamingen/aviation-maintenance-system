@@ -205,6 +205,55 @@ app.post('/api/record', async (req, res) => {
     }
 });
 
+// ================= 管理员功能 (测试用) =================
+
+// 6. 授权钱包 (Admin)
+app.post('/api/admin/authorize', async (req, res) => {
+    try {
+        const { address } = req.body;
+        if (!address) {
+            return res.status(400).json({ success: false, error: "Address is required" });
+        }
+        
+        console.log(`Authorizing wallet: ${address}`);
+        const tx = await contract.setNodeAuthorization(address, true);
+        await tx.wait();
+        
+        res.json({ success: true, message: `Wallet ${address} authorized successfully`, txHash: tx.hash });
+    } catch (error) {
+        console.error("Authorization error:", error);
+        res.status(500).json({ success: false, error: error.reason || error.message });
+    }
+});
+
+// 7. 发送 ETH (Admin - Faucet)
+app.post('/api/admin/fund', async (req, res) => {
+    try {
+        const { address, amount } = req.body;
+        if (!address) {
+            return res.status(400).json({ success: false, error: "Address is required" });
+        }
+        
+        const ethAmount = amount || "1.0";
+        console.log(`Funding wallet: ${address} with ${ethAmount} ETH`);
+        
+        // 使用后端钱包 (Account #0) 发送 ETH
+        // config.js 导出了 wallet 实例
+        const { wallet } = require('./config');
+        
+        const tx = await wallet.sendTransaction({
+            to: address,
+            value: ethers.parseEther(ethAmount)
+        });
+        await tx.wait();
+        
+        res.json({ success: true, message: `Sent ${ethAmount} ETH to ${address}`, txHash: tx.hash });
+    } catch (error) {
+        console.error("Funding error:", error);
+        res.status(500).json({ success: false, error: error.reason || error.message });
+    }
+});
+
 // 辅助函数：处理 BigInt 序列化问题
 function convertBigIntToString(obj) {
     if (obj === null || obj === undefined) return obj;
