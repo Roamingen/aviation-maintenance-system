@@ -31,11 +31,13 @@
           <el-descriptions-item label="ATA章节">{{ record.ataCode }}</el-descriptions-item>
           <el-descriptions-item label="工作类型">{{ record.workType }}</el-descriptions-item>
           <el-descriptions-item label="工作地点">{{ record.location }}</el-descriptions-item>
+          <el-descriptions-item label="工作日期">{{ formatTimestamp(record.signatures?.performTime) }}</el-descriptions-item>
           <el-descriptions-item label="记录人地址">
             <el-tooltip :content="record.recorder" placement="top">
-                <span>{{ record.recorder }}</span>
+                <span style="display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom;">{{ record.recorder }}</span>
             </el-tooltip>
           </el-descriptions-item>
+          <el-descriptions-item label="上链时间">{{ formatTimestamp(record.timestamp) }}</el-descriptions-item>
           <el-descriptions-item label="工作描述" :span="2">{{ record.workDescription }}</el-descriptions-item>
           
           <el-descriptions-item label="消耗件" :span="2">

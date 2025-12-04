@@ -56,7 +56,7 @@
               <el-timeline-item
                 v-for="(record, index) in filteredAircraftRecords"
                 :key="index"
-                :timestamp="formatTimestamp(record.timestamp)"
+                :timestamp="formatTimestamp(record.signatures.performTime)"
                 placement="top"
               >
                 <RecordDetailCard 
@@ -98,7 +98,7 @@
               <el-timeline-item
                 v-for="(record, index) in filteredMechanicRecords"
                 :key="index"
-                :timestamp="formatTimestamp(record.timestamp)"
+                :timestamp="formatTimestamp(record.signatures.performTime)"
                 placement="top"
               >
                 <RecordDetailCard 
@@ -141,7 +141,8 @@ const filteredAircraftRecords = computed(() => {
     const start = dateRange.value[0].getTime() / 1000
     const end = dateRange.value[1].getTime() / 1000 + 86400 // 包含当天
     return aircraftRecords.value.filter(r => {
-        const ts = Number(r.timestamp)
+        // 筛选使用手动填写的工作时间 (performTime)
+        const ts = Number(r.signatures.performTime)
         return ts >= start && ts < end
     })
 })
@@ -157,7 +158,8 @@ const filteredMechanicRecords = computed(() => {
     const start = mechanicDateRange.value[0].getTime() / 1000
     const end = mechanicDateRange.value[1].getTime() / 1000 + 86400
     return mechanicRecords.value.filter(r => {
-        const ts = Number(r.timestamp)
+        // 筛选使用手动填写的工作时间 (performTime)
+        const ts = Number(r.signatures.performTime)
         return ts >= start && ts < end
     })
 })

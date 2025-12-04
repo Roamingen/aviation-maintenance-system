@@ -158,7 +158,7 @@ contract AviationMaintenance {
             .signatures
             .performedByName;
         newRecord.signatures.performedById = _record.signatures.performedById; // 保存工号
-        newRecord.signatures.performTime = block.timestamp;
+        newRecord.signatures.performTime = _record.signatures.performTime; // 使用传入的时间作为工作时间
 
         // 初始化其他签名为空
         newRecord.signatures.inspectedBy = address(0);

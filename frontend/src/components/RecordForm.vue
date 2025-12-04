@@ -169,6 +169,15 @@
         </el-col>
       </el-row>
 
+      <el-form-item label="工作日期" required>
+        <el-date-picker
+          v-model="form.signatures.performTime"
+          type="datetime"
+          placeholder="选择工作日期和时间"
+          style="width: 100%"
+        />
+      </el-form-item>
+
       <el-form-item>
         <el-button type="primary" @click="submitForm" :loading="loading">提交上链</el-button>
         <el-button @click="resetForm">重置</el-button>
@@ -249,19 +258,23 @@ const workTypeOptions = [
 ]
 
 const submitForm = async () => {
-  if (!form.aircraftRegNo || !form.workDescription || !form.signatures.performedByName || !form.signatures.performedById || !form.ataCode || !form.workType || !form.location) {
-    ElMessage.error('请填写必填项 (飞机号、ATA章节号、工作类型、工作地点、工作描述、工作者姓名、工号)')
+  if (!form.aircraftRegNo || !form.workDescription || !form.signatures.performedByName || !form.signatures.performedById || !form.ataCode || !form.workType || !form.location || !form.signatures.performTime) {
+    ElMessage.error('请填写必填项 (飞机号、ATA章节号、工作类型、工作地点、工作描述、工作者姓名、工号、工作日期)')
     return
   }
 
   loading.value = true
   try {
-    // 设置当前时间戳
-    form.signatures.performTime = Math.floor(Date.now() / 1000)
+    // 转换时间为秒级时间戳
+    const performTimeSeconds = Math.floor(new Date(form.signatures.performTime).getTime() / 1000)
 
     // Prepare data for backend
     const payload = {
       ...form,
+      signatures: {
+        ...form.signatures,
+        performTime: performTimeSeconds
+      },
       usedTools: form.usedTools.map(t => t.toolNumber) // Transform objects to strings
     }
 

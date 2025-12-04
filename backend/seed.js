@@ -52,6 +52,7 @@ async function main() {
             signatures: {
                 performedByName: "张三",
                 performedById: "001",
+                performTime: Math.floor(Date.now() / 1000) - 86400 * 1, // 1天前
                 inspectedByName: "李四",
                 inspectedById: "002",
                 riiByName: "王五",
@@ -100,6 +101,7 @@ async function main() {
             signatures: {
                 performedByName: "Mike",
                 performedById: "A003",
+                performTime: Math.floor(Date.now() / 1000) - 86400 * 2, // 2天前
                 inspectedByName: "Sarah",
                 inspectedById: "A004",
                 riiByName: "",
@@ -145,6 +147,7 @@ async function main() {
             signatures: {
                 performedByName: "陈工",
                 performedById: "E001",
+                performTime: Math.floor(Date.now() / 1000) - 86400 * 3, // 3天前
                 inspectedByName: "刘工",
                 inspectedById: "E002",
                 riiByName: "",
@@ -183,6 +186,7 @@ async function main() {
             signatures: {
                 performedByName: "王强",
                 performedById: "H005",
+                performTime: Math.floor(Date.now() / 1000) - 86400 * 4, // 4天前
                 inspectedByName: "赵雷",
                 inspectedById: "INS-003",
                 riiByName: "孙监察",
@@ -237,6 +241,7 @@ async function main() {
             signatures: {
                 performedByName: "Geek",
                 performedById: "S001",
+                performTime: Math.floor(Date.now() / 1000) - 86400 * 5, // 5天前
                 inspectedByName: "N/A",
                 inspectedById: "",
                 riiByName: "",
@@ -277,7 +282,7 @@ async function main() {
                 performedBy: zeroAddr,
                 performedByName: record.signatures.performedByName,
                 performedById: record.signatures.performedById, // 确保这里正确传递了工号
-                performTime: 0,
+                performTime: record.signatures.performTime || Math.floor(Date.now() / 1000), // 使用预设时间或当前时间
                 inspectedBy: zeroAddr,
                 inspectedByName: "", // 初始为空，后续签名时填入
                 inspectedById: "",
