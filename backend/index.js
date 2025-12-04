@@ -95,6 +95,38 @@ app.get('/api/mechanic/:mechanicId', async (req, res) => {
     }
 });
 
+// 3.7 查询：获取所有记录 (分页)
+app.get('/api/records', async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const pageSize = parseInt(req.query.pageSize) || 10;
+
+        // 1. 获取总数
+        const totalBigInt = await contract.getRecordCount();
+        const total = Number(totalBigInt);
+
+        // 2. 获取当前页的 ID 列表 (合约已处理倒序)
+        const pageIds = await contract.getRecordIdsByPage(page, pageSize);
+        
+        // 3. 获取详情
+        const records = await Promise.all(pageIds.map(async (id) => {
+            const r = await contract.getRecordById(id);
+            return convertBigIntToString(r);
+        }));
+
+        res.json({ 
+            success: true, 
+            data: records,
+            total: total,
+            page: page,
+            pageSize: pageSize
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // 4. 写入：添加检修记录
 app.post('/api/record', async (req, res) => {
     try {

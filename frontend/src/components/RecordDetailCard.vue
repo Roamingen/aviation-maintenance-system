@@ -3,8 +3,7 @@
     <el-card>
       <div class="card-header-flex">
         <h4>
-          {{ record.workType }} 
-          <span style="font-size: 0.8em; color: #909399; font-weight: normal;">#{{ record.recordId.slice(0, 8) }}...</span>
+          {{ formatTitle(record) }}
         </h4>
         <el-button v-if="showExpand" type="primary" link @click="$emit('toggle-expand')">
           {{ expanded ? '收起详情' : '查看详情' }}
@@ -154,6 +153,25 @@ const formatTimestamp = (ts) => {
   if (!ts || ts == 0) return ''
   const date = new Date(Number(ts) * 1000)
   return date.toLocaleString()
+}
+
+const formatTitle = (record) => {
+  if (!record) return ''
+  
+  const type = record.workType || '未知类型'
+  const reg = record.aircraftRegNo || '未知机号'
+  
+  let dateStr = '00000000'
+  if (record.signatures && record.signatures.performTime) {
+      const date = new Date(Number(record.signatures.performTime) * 1000)
+      const y = date.getFullYear()
+      const m = String(date.getMonth() + 1).padStart(2, '0')
+      const d = String(date.getDate()).padStart(2, '0')
+      dateStr = `${y}${m}${d}`
+  }
+  
+  // 使用 " · " (间隔号) 连接，比横杠更清晰，因为工作类型中可能包含横杠
+  return `${type} · ${reg} · ${dateStr}`
 }
 </script>
 

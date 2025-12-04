@@ -1,10 +1,10 @@
 <template>
   <div class="sign-action">
-    <div v-if="!walletAddress">
-      <el-button type="primary" @click="connectWallet">连接钱包以签名</el-button>
+    <div v-if="!walletState.isConnected">
+      <el-alert title="您当前尚未连接钱包，无法进行签名操作" type="warning" :closable="false" show-icon />
     </div>
     <div v-else>
-      <p>当前钱包: {{ walletAddress }}</p>
+      <p>当前钱包: {{ walletState.address }}</p>
       
       <!-- Peer Check -->
       <div v-if="canSignPeerCheck" class="action-box">
@@ -45,6 +45,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ethers } from 'ethers'
 import { ElMessage } from 'element-plus'
 import axios from 'axios'
+import { walletState } from '../walletState'
 
 const props = defineProps({
   recordId: String,
@@ -55,7 +56,7 @@ const props = defineProps({
 
 const emit = defineEmits(['refresh'])
 
-const walletAddress = ref('')
+// const walletAddress = ref('') // Moved to global state
 const inspectorName = ref('')
 const inspectorId = ref('')
 const riiName = ref('')
@@ -65,25 +66,7 @@ const releaserId = ref('')
 const loading = ref(false)
 const contractConfig = ref(null)
 
-const connectWallet = async () => {
-  console.log("Attempting to connect wallet...");
-  console.log("window.ethereum:", window.ethereum);
-  
-  if (typeof window.ethereum !== 'undefined') {
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum)
-      const accounts = await provider.send("eth_requestAccounts", [])
-      walletAddress.value = accounts[0]
-      ElMessage.success("钱包连接成功")
-    } catch (error) {
-      console.error("Wallet connection error:", error);
-      ElMessage.error("连接钱包失败: " + (error.message || "未知错误"))
-    }
-  } else {
-    console.error("MetaMask not found in window object");
-    ElMessage.warning("未检测到 MetaMask。请确保插件已启用，并尝试刷新页面。")
-  }
-}
+// connectWallet moved to App.vue
 
 const fetchConfig = async () => {
   try {

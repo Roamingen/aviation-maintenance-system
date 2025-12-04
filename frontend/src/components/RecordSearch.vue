@@ -114,6 +114,48 @@
         </el-tab-pane>
       </el-tabs>
     </el-card>
+
+    <!-- 所有检修记录卡片 -->
+    <el-card class="search-card" style="margin-top: 20px;">
+      <template #header>
+        <div class="card-header">
+          <span>所有检修记录 (最新上传)</span>
+          <el-button type="primary" link @click="fetchAllRecords" :loading="loadingAll">刷新</el-button>
+        </div>
+      </template>
+
+      <div v-loading="loadingAll">
+        <div v-if="allRecords.length > 0">
+            <el-timeline>
+              <el-timeline-item
+                v-for="(record, index) in allRecords"
+                :key="index"
+                :timestamp="formatTimestamp(record.timestamp)"
+                placement="top"
+              >
+                <RecordDetailCard 
+                    :record="record" 
+                    :expanded="record.expanded"
+                    @toggle-expand="toggleExpand(record)"
+                    @refresh="fetchAllRecords"
+                />
+              </el-timeline-item>
+            </el-timeline>
+
+            <div class="pagination-container">
+                <el-pagination
+                    background
+                    layout="prev, pager, next"
+                    :total="totalRecords"
+                    :page-size="pageSize"
+                    :current-page="currentPage"
+                    @current-change="handlePageChange"
+                />
+            </div>
+        </div>
+        <el-empty v-else description="暂无记录" />
+      </div>
+    </el-card>
   </div>
 </template>
 
@@ -231,6 +273,44 @@ const filterRecords = () => {
 const filterMechanicRecords = () => {
     // 触发 computed 更新
 }
+
+// 所有记录分页相关
+const allRecords = ref([])
+const currentPage = ref(1)
+const pageSize = ref(5)
+const totalRecords = ref(0)
+const loadingAll = ref(false)
+
+const fetchAllRecords = async () => {
+    loadingAll.value = true
+    try {
+        const res = await axios.get('http://localhost:3000/api/records', {
+            params: {
+                page: currentPage.value,
+                pageSize: pageSize.value
+            }
+        })
+        if (res.data.success) {
+            allRecords.value = res.data.data.map(r => ({ ...r, expanded: false }))
+            totalRecords.value = res.data.total
+        }
+    } catch (error) {
+        ElMessage.error('获取记录列表失败')
+    } finally {
+        loadingAll.value = false
+    }
+}
+
+const handlePageChange = (page) => {
+    currentPage.value = page
+    fetchAllRecords()
+}
+
+// 初始化加载
+import { onMounted } from 'vue'
+onMounted(() => {
+    fetchAllRecords()
+})
 </script>
 
 <style scoped>
@@ -247,5 +327,10 @@ const filterMechanicRecords = () => {
 }
 .filter-area {
     margin-bottom: 20px;
+}
+.pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
 }
 </style>

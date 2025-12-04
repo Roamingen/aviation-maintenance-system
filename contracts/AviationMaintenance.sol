@@ -96,6 +96,9 @@ contract AviationMaintenance {
     // 索引: 机械师(工作者) => 记录ID列表
     mapping(string => string[]) private mechanicRecords;
 
+    // 存储所有记录ID列表 (用于遍历)
+    string[] private allRecordIds;
+
     // 记录是否存在
     mapping(string => bool) public recordExists;
 
@@ -197,6 +200,7 @@ contract AviationMaintenance {
         mechanicRecords[_record.signatures.performedById].push(
             _record.recordId
         ); // 使用工号索引
+        allRecordIds.push(_record.recordId); // 添加到总列表
         recordExists[_record.recordId] = true;
 
         emit RecordAdded(
@@ -297,5 +301,38 @@ contract AviationMaintenance {
         string memory _mechanicId
     ) public view returns (string[] memory) {
         return mechanicRecords[_mechanicId];
+    }
+
+    // 5. 获取记录总数
+    function getRecordCount() public view returns (uint256) {
+        return allRecordIds.length;
+    }
+
+    // 6. 分页获取 Record ID (倒序：最新的在前)
+    function getRecordIdsByPage(
+        uint256 _page,
+        uint256 _pageSize
+    ) public view returns (string[] memory) {
+        uint256 total = allRecordIds.length;
+        if (total == 0 || _pageSize == 0) {
+            return new string[](0);
+        }
+
+        uint256 skip = (_page - 1) * _pageSize;
+        if (skip >= total) {
+            return new string[](0);
+        }
+
+        uint256 remaining = total - skip;
+        uint256 count = remaining < _pageSize ? remaining : _pageSize;
+
+        string[] memory pageIds = new string[](count);
+
+        // 倒序遍历：从 total - 1 - skip 开始
+        for (uint256 i = 0; i < count; i++) {
+            pageIds[i] = allRecordIds[total - 1 - skip - i];
+        }
+
+        return pageIds;
     }
 }

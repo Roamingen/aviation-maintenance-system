@@ -251,15 +251,15 @@ const addReplaceInfo = () => form.replaceInfo.push({
 const removeReplaceInfo = (index) => form.replaceInfo.splice(index, 1)
 
 const workTypeOptions = [
-  { value: '航前检查（Pre-flight Inspection）', label: '航前检查（Pre-flight Inspection）' },
-  { value: '过站检查（Transit / Turnaround Check）', label: '过站检查（Transit / Turnaround Check）' },
-  { value: '航后检查（Post-flight Inspection）', label: '航后检查（Post-flight Inspection）' },
-  { value: '每日检查（Daily Check）', label: '每日检查（Daily Check）' },
-  { value: 'A 检（A-Check）', label: 'A 检（A-Check）' },
-  { value: 'B 检（B-Check）', label: 'B 检（B-Check）' },
-  { value: 'C 检（C-Check）', label: 'C 检（C-Check）' },
-  { value: 'D 检 / 重检（D-Check / Heavy Maintenance Visit）', label: 'D 检 / 重检（D-Check / Heavy Maintenance Visit）' },
-  { value: '时控件更换（Life-limited Parts Replacement）', label: '时控件更换（Life-limited Parts Replacement）' }
+  { value: 'Pre-flight Inspection', label: '航前检查（Pre-flight Inspection）' },
+  { value: 'Transit / Turnaround Check', label: '过站检查（Transit / Turnaround Check）' },
+  { value: 'Post-flight Inspection', label: '航后检查（Post-flight Inspection）' },
+  { value: 'Daily Check', label: '每日检查（Daily Check）' },
+  { value: 'A-Check', label: 'A 检（A-Check）' },
+  { value: 'B-Check', label: 'B 检（B-Check）' },
+  { value: 'C-Check', label: 'C 检（C-Check）' },
+  { value: 'D-Check / Heavy Maintenance Visit', label: 'D 检 / 重检（D-Check / Heavy Maintenance Visit）' },
+  { value: 'Life-limited Parts Replacement', label: '时控件更换（Life-limited Parts Replacement）' }
 ]
 
 const submitForm = async () => {

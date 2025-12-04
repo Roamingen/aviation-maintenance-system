@@ -32,6 +32,22 @@
       <el-container>
         <el-header class="header">
           <div class="header-title">基于区块链的民航飞机检修记录存证系统</div>
+          <div class="header-right">
+            <el-button 
+              v-if="!walletState.isConnected" 
+              type="primary" 
+              @click="connectWallet"
+            >
+              连接钱包
+            </el-button>
+            <el-button 
+              v-else 
+              type="danger" 
+              @click="disconnectWallet"
+            >
+              注销 ({{ shortAddress }})
+            </el-button>
+          </div>
         </el-header>
         
         <el-main class="main-content">
@@ -51,16 +67,68 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { Search, Edit, List } from '@element-plus/icons-vue'
+import { ethers } from 'ethers'
+import { ElMessage } from 'element-plus'
 import RecordSearch from './components/RecordSearch.vue'
 import RecordForm from './components/RecordForm.vue'
+import { walletState, setWallet } from './walletState'
 
 const currentView = ref('search')
 
 const handleSelect = (key) => {
   currentView.value = key
 }
+
+const shortAddress = computed(() => {
+  if (!walletState.address) return ''
+  return `${walletState.address.slice(0, 6)}...${walletState.address.slice(-4)}`
+})
+
+const connectWallet = async () => {
+  if (typeof window.ethereum !== 'undefined') {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const accounts = await provider.send("eth_requestAccounts", [])
+      setWallet(accounts[0])
+      ElMessage.success("钱包连接成功")
+    } catch (error) {
+      console.error("Wallet connection error:", error);
+      ElMessage.error("连接钱包失败: " + (error.message || "未知错误"))
+    }
+  } else {
+    ElMessage.warning("未检测到 MetaMask。请确保插件已启用。")
+  }
+}
+
+const disconnectWallet = () => {
+  setWallet('')
+  ElMessage.info("已断开连接")
+}
+
+onMounted(async () => {
+  if (typeof window.ethereum !== 'undefined') {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const accounts = await provider.listAccounts()
+      if (accounts.length > 0) {
+        setWallet(accounts[0].address)
+      }
+      
+      // Listen for account changes
+      window.ethereum.on('accountsChanged', (accounts) => {
+        if (accounts.length > 0) {
+          setWallet(accounts[0])
+        } else {
+          setWallet('')
+        }
+      })
+    } catch (e) {
+      console.error("Auto connect failed", e)
+    }
+  }
+})
 </script>
 
 <style>
@@ -110,6 +178,7 @@ body {
   box-shadow: 0 1px 4px rgba(0,21,41,.08);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 0 20px;
   height: 60px;
 }
