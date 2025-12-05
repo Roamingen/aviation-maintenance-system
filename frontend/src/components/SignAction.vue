@@ -115,8 +115,18 @@ const checkAuthorization = async () => {
     }
     try {
         const contract = await getContract()
-        const isAuth = await contract.authorizedNodes(walletState.address)
-        isAuthorizedNode.value = isAuth
+        // authorizedNodes returns a boolean directly in ethers v6 for simple types
+        // But to be safe against Result objects, we check
+        const result = await contract.authorizedNodes(walletState.address)
+        
+        // Handle Ethers Result object or direct value
+        if (typeof result === 'object' && result !== null && '0' in result) {
+             isAuthorizedNode.value = !!result[0]
+        } else {
+             isAuthorizedNode.value = !!result
+        }
+        
+        console.log(`Authorization check for ${walletState.address}: ${isAuthorizedNode.value}`)
     } catch (e) {
         console.error("Failed to check authorization", e)
         // Don't set to false immediately on error, maybe network issue? 
