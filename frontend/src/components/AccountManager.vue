@@ -53,6 +53,38 @@
       </el-col>
     </el-row>
 
+    <!-- 已授权节点列表 -->
+    <el-row :gutter="20" style="margin-top: 20px;">
+      <el-col :span="24">
+        <el-card class="box-card">
+          <template #header>
+            <div class="card-header">
+              <span>已授权节点列表 (Authorized Nodes)</span>
+              <el-button type="primary" link @click="fetchAuthorizedNodes">刷新</el-button>
+            </div>
+          </template>
+          <el-table :data="authorizedNodes" style="width: 100%" v-loading="listLoading" empty-text="暂无授权节点">
+            <el-table-column prop="address" label="钱包地址" />
+            <el-table-column label="操作" width="120">
+              <template #default="scope">
+                <el-popconfirm title="确定要取消该节点的授权吗？" @confirm="revokeAuthorization(scope.row.address)">
+                  <template #reference>
+                    <el-button 
+                      type="danger" 
+                      size="small" 
+                      :loading="scope.row.loading"
+                    >
+                      取消授权
+                    </el-button>
+                  </template>
+                </el-popconfirm>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 提示信息 -->
     <el-row :gutter="20" style="margin-top: 20px;">
       <el-col :span="24">
@@ -68,11 +100,50 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
 const API_BASE_URL = 'http://localhost:3000'
+
+// 列表相关
+const authorizedNodes = ref([])
+const listLoading = ref(false)
+
+const fetchAuthorizedNodes = async () => {
+  listLoading.value = true
+  try {
+    const res = await axios.get(`${API_BASE_URL}/api/admin/authorized-nodes`)
+    if (res.data.success) {
+      authorizedNodes.value = res.data.data.map(addr => ({
+        address: addr,
+        loading: false
+      }))
+    }
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('获取授权列表失败')
+  } finally {
+    listLoading.value = false
+  }
+}
+
+const revokeAuthorization = async (address) => {
+  const node = authorizedNodes.value.find(n => n.address === address)
+  if (node) node.loading = true
+  
+  try {
+    const res = await axios.post(`${API_BASE_URL}/api/admin/revoke`, { address })
+    if (res.data.success) {
+      ElMessage.success('取消授权成功')
+      fetchAuthorizedNodes()
+    }
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('取消授权失败: ' + (error.response?.data?.error || error.message))
+    if (node) node.loading = false
+  }
+}
 
 // 授权表单
 const authForm = ref({
@@ -95,6 +166,7 @@ const authorizeWallet = async () => {
     if (res.data.success) {
       ElMessage.success(`授权成功! 交易哈希: ${res.data.txHash}`)
       authForm.value.address = ''
+      fetchAuthorizedNodes() // 刷新列表
     }
   } catch (error) {
     console.error(error)
@@ -103,6 +175,10 @@ const authorizeWallet = async () => {
     authLoading.value = false
   }
 }
+
+onMounted(() => {
+  fetchAuthorizedNodes()
+})
 
 // 资金表单
 const fundForm = ref({

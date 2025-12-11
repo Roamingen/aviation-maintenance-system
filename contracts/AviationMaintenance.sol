@@ -88,6 +88,8 @@ contract AviationMaintenance {
 
     // 授权的节点列表
     mapping(address => bool) public authorizedNodes;
+    // 存储所有授权节点的数组 (用于遍历)
+    address[] public authorizedNodeList;
 
     // 存储所有记录: recordId => Record
     mapping(string => MaintenanceRecord) private records;
@@ -133,14 +135,39 @@ contract AviationMaintenance {
     constructor() {
         owner = msg.sender;
         authorizedNodes[msg.sender] = true;
+        authorizedNodeList.push(msg.sender);
     }
 
     function setNodeAuthorization(
         address _node,
         bool _status
     ) public onlyOwner {
-        authorizedNodes[_node] = _status;
-        emit NodeAuthorized(_node, _status);
+        if (_status) {
+            // 授权
+            if (!authorizedNodes[_node]) {
+                authorizedNodes[_node] = true;
+                authorizedNodeList.push(_node);
+                emit NodeAuthorized(_node, true);
+            }
+        } else {
+            // 取消授权
+            if (authorizedNodes[_node]) {
+                authorizedNodes[_node] = false;
+                // 从列表中移除 (交换删除法)
+                for (uint i = 0; i < authorizedNodeList.length; i++) {
+                    if (authorizedNodeList[i] == _node) {
+                        authorizedNodeList[i] = authorizedNodeList[authorizedNodeList.length - 1];
+                        authorizedNodeList.pop();
+                        break;
+                    }
+                }
+                emit NodeAuthorized(_node, false);
+            }
+        }
+    }
+
+    function getAuthorizedNodes() public view returns (address[] memory) {
+        return authorizedNodeList;
     }
 
     // 添加检修记录 (工作者签名)

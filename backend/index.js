@@ -254,6 +254,38 @@ app.post('/api/admin/fund', async (req, res) => {
     }
 });
 
+// 8. 获取所有授权节点 (Admin)
+app.get('/api/admin/authorized-nodes', async (req, res) => {
+    try {
+        const nodes = await contract.getAuthorizedNodes();
+        // nodes is likely a Proxy or Result, convert it
+        const nodeList = Array.from(nodes);
+        res.json({ success: true, data: nodeList });
+    } catch (error) {
+        console.error("Error fetching authorized nodes:", error);
+        res.status(500).json({ success: false, error: error.reason || error.message });
+    }
+});
+
+// 9. 取消授权 (Admin)
+app.post('/api/admin/revoke', async (req, res) => {
+    try {
+        const { address } = req.body;
+        if (!address) {
+            return res.status(400).json({ success: false, error: "Address is required" });
+        }
+        
+        console.log(`Revoking authorization for wallet: ${address}`);
+        const tx = await contract.setNodeAuthorization(address, false);
+        await tx.wait();
+        
+        res.json({ success: true, message: `Wallet ${address} authorization revoked`, txHash: tx.hash });
+    } catch (error) {
+        console.error("Revocation error:", error);
+        res.status(500).json({ success: false, error: error.reason || error.message });
+    }
+});
+
 // 辅助函数：处理 BigInt 序列化问题
 function convertBigIntToString(obj) {
     if (obj === null || obj === undefined) return obj;
