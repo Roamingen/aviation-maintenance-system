@@ -34,8 +34,8 @@ const newContent = `<template>
           </div>
         </el-tab-pane>
 
-        <!-- 按飞机号查询 -->
-        <el-tab-pane label="按飞机号查询" name="aircraft">
+        <!-- 按注册号查询 -->
+        <el-tab-pane label="按注册号查询" name="aircraft">
           <div class="search-input">
             <el-input v-model="searchRegNo" placeholder="请输入飞机注册号 (例如 B-1234)" clearable @keyup.enter="searchByAircraft">
               <template #append>
@@ -135,7 +135,7 @@ const searchMechanic = ref('')
 
 const recordResult = ref(null)
 
-// 飞机号查询相关
+// 注册号查询相关
 const aircraftRecords = ref([])
 const searchedAircraft = ref(false)
 const dateRange = ref(null)
@@ -184,7 +184,7 @@ const searchByRecordId = async () => {
   }
 }
 
-// 按飞机号查询
+// 按注册号查询
 const searchByAircraft = async () => {
   if (!searchRegNo.value) return
   searchedAircraft.value = true
