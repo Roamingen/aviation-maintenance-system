@@ -156,7 +156,9 @@ contract AviationMaintenance {
                 // 从列表中移除 (交换删除法)
                 for (uint i = 0; i < authorizedNodeList.length; i++) {
                     if (authorizedNodeList[i] == _node) {
-                        authorizedNodeList[i] = authorizedNodeList[authorizedNodeList.length - 1];
+                        authorizedNodeList[i] = authorizedNodeList[
+                            authorizedNodeList.length - 1
+                        ];
                         authorizedNodeList.pop();
                         break;
                     }

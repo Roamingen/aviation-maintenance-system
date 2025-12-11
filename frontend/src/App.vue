@@ -3,7 +3,7 @@
     <el-container class="layout-container">
       <el-aside width="220px" class="aside">
         <div class="logo-area">
-          <div class="logo-icon">✈️</div>
+          <img :src="planeUrl" class="logo-icon" alt="Logo" />
           <div class="logo-text">民航检修存证</div>
         </div>
         <el-menu
@@ -74,6 +74,8 @@ import RecordSearch from './components/RecordSearch.vue'
 import RecordForm from './components/RecordForm.vue'
 import AccountManager from './components/AccountManager.vue'
 import { walletState, setWallet } from './walletState'
+import logoUrl from './assets/logo.svg'
+import planeUrl from './assets/plane.svg'
 
 const currentView = ref('search')
 
@@ -166,6 +168,8 @@ body {
 }
 
 .logo-icon {
+  width: 32px;
+  height: 32px;
   margin-right: 10px;
 }
 

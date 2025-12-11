@@ -231,7 +231,8 @@ const handleSignPeerCheck = async () => {
     try {
         const contract = await getContract()
         const tx = await contract.signPeerCheck(props.recordId, inspectorName.value, inspectorId.value, {
-            gasLimit: 300000 
+            gasLimit: 300000,
+            gasPrice: 0 // 强制 0 Gas
         })
         await tx.wait()
         ElMessage.success("互检签名成功")
@@ -250,7 +251,8 @@ const handleSignRII = async () => {
     try {
         const contract = await getContract()
         const tx = await contract.signRII(props.recordId, riiName.value, riiId.value, {
-            gasLimit: 300000 
+            gasLimit: 300000,
+            gasPrice: 0 // 强制 0 Gas
         })
         await tx.wait()
         ElMessage.success("必检签名成功")
@@ -270,7 +272,8 @@ const handleSignRelease = async () => {
         const contract = await getContract()
         // 显式指定 gasLimit
         const tx = await contract.signRelease(props.recordId, releaserName.value, releaserId.value, {
-            gasLimit: 300000
+            gasLimit: 300000,
+            gasPrice: 0 // 强制 0 Gas
         })
         await tx.wait()
         ElMessage.success("放行签名成功")

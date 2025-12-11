@@ -264,7 +264,7 @@ const workTypeOptions = [
 
 const submitForm = async () => {
   if (!form.aircraftRegNo || !form.workDescription || !form.signatures.performedByName || !form.signatures.performedById || !form.ataCode || !form.workType || !form.location || !form.signatures.performTime) {
-    ElMessage.error('请填写必填项 (飞机号、ATA章节号、工作类型、工作地点、工作描述、工作者姓名、工号、工作日期)')
+    ElMessage.error('请填写必填项 (注册号、ATA章节号、工作类型、工作地点、工作描述、工作者姓名、工号、工作日期)')
     return
   }
 

@@ -1,9 +1,9 @@
 <template>
   <div class="account-manager">
-    <el-row :gutter="20">
+    <el-row :gutter="20" type="flex" style="display: flex; flex-wrap: wrap;">
       <!-- 授权钱包 -->
-      <el-col :span="12">
-        <el-card class="box-card">
+      <el-col :span="12" style="display: flex;">
+        <el-card class="box-card" style="flex: 1;">
           <template #header>
             <div class="card-header">
               <span>授权钱包 (Authorize Wallet)</span>
@@ -15,7 +15,11 @@
             </p>
             <el-form :model="authForm" label-width="100px">
               <el-form-item label="钱包地址" required>
-                <el-input v-model="authForm.address" placeholder="0x..." />
+                <el-input v-model="authForm.address" placeholder="0x...">
+                  <template #append>
+                    <el-button @click="authForm.address = walletState.address" :disabled="!walletState.isConnected">当前钱包</el-button>
+                  </template>
+                </el-input>
               </el-form-item>
               <el-form-item>
                 <el-button type="primary" @click="authorizeWallet" :loading="authLoading">授权</el-button>
@@ -26,8 +30,8 @@
       </el-col>
 
       <!-- 发送 ETH -->
-      <el-col :span="12">
-        <el-card class="box-card">
+      <el-col :span="12" style="display: flex;">
+        <el-card class="box-card" style="flex: 1;">
           <template #header>
             <div class="card-header">
               <span>发送测试币 (Fund Wallet)</span>
@@ -39,7 +43,11 @@
             </p>
             <el-form :model="fundForm" label-width="100px">
               <el-form-item label="接收地址" required>
-                <el-input v-model="fundForm.address" placeholder="0x..." />
+                <el-input v-model="fundForm.address" placeholder="0x...">
+                  <template #append>
+                    <el-button @click="fundForm.address = walletState.address" :disabled="!walletState.isConnected">当前钱包</el-button>
+                  </template>
+                </el-input>
               </el-form-item>
               <el-form-item label="金额 (ETH)">
                 <el-input v-model="fundForm.amount" placeholder="1.0" />
@@ -48,6 +56,13 @@
                 <el-button type="success" @click="fundWallet" :loading="fundLoading">发送 ETH</el-button>
               </el-form-item>
             </el-form>
+            
+            <div class="faucet-info" v-if="faucetBalance !== null" style="margin-top: auto; padding-top: 10px; border-top: 1px solid #eee;">
+                <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #666;">
+                    <span>水龙头余额 (Account #0):</span>
+                    <span style="font-weight: bold; color: #67C23A;">{{ parseFloat(faucetBalance).toFixed(4) }} ETH</span>
+                </div>
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -64,26 +79,61 @@
             </div>
           </template>
           <el-table :data="authorizedNodes" style="width: 100%" v-loading="listLoading" empty-text="暂无授权节点">
-            <el-table-column prop="address" label="钱包地址" />
-            <el-table-column label="操作" width="120">
+            <el-table-column prop="address" label="钱包地址" min-width="400" />
+            <el-table-column prop="balance" label="余额 (ETH)" width="180">
+                <template #default="scope">
+                    {{ parseFloat(scope.row.balance).toFixed(4) }}
+                </template>
+            </el-table-column>
+            <el-table-column label="操作" min-width="220" align="center">
               <template #default="scope">
-                <el-popconfirm title="确定要取消该节点的授权吗？" @confirm="revokeAuthorization(scope.row.address)">
-                  <template #reference>
+                <div style="display: flex; justify-content: center;">
                     <el-button 
-                      type="danger" 
-                      size="small" 
-                      :loading="scope.row.loading"
+                        type="warning" 
+                        size="small" 
+                        @click="openDeductDialog(scope.row)"
+                        style="margin-right: 10px;"
                     >
-                      取消授权
+                        扣除资金
                     </el-button>
-                  </template>
-                </el-popconfirm>
+                    <el-popconfirm title="确定要取消该节点的授权吗？" @confirm="revokeAuthorization(scope.row.address)">
+                    <template #reference>
+                        <el-button 
+                        type="danger" 
+                        size="small" 
+                        :loading="scope.row.loading"
+                        >
+                        取消授权
+                        </el-button>
+                    </template>
+                    </el-popconfirm>
+                </div>
               </template>
             </el-table-column>
           </el-table>
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- 扣款对话框 -->
+    <el-dialog v-model="deductDialogVisible" title="扣除资金 (Burn/Remove)" width="30%">
+        <el-form :model="deductForm">
+            <el-form-item label="目标地址">
+                <el-input v-model="deductForm.address" disabled />
+            </el-form-item>
+            <el-form-item label="扣除金额 (ETH)">
+                <el-input v-model="deductForm.amount" placeholder="例如 10.0" />
+            </el-form-item>
+        </el-form>
+        <template #footer>
+            <span class="dialog-footer">
+                <el-button @click="deductDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="handleDeduct" :loading="deductLoading">
+                    确认扣除
+                </el-button>
+            </span>
+        </template>
+    </el-dialog>
 
     <!-- 提示信息 -->
     <el-row :gutter="20" style="margin-top: 20px;">
@@ -103,6 +153,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { walletState } from '../walletState'
 
 const API_BASE_URL = 'http://localhost:3000'
 
@@ -115,8 +166,9 @@ const fetchAuthorizedNodes = async () => {
   try {
     const res = await axios.get(`${API_BASE_URL}/api/admin/authorized-nodes`)
     if (res.data.success) {
-      authorizedNodes.value = res.data.data.map(addr => ({
-        address: addr,
+      authorizedNodes.value = res.data.data.map(item => ({
+        address: item.address,
+        balance: item.balance,
         loading: false
       }))
     }
@@ -126,6 +178,44 @@ const fetchAuthorizedNodes = async () => {
   } finally {
     listLoading.value = false
   }
+}
+
+// 扣款相关
+const deductDialogVisible = ref(false)
+const deductLoading = ref(false)
+const deductForm = ref({
+    address: '',
+    amount: ''
+})
+
+const openDeductDialog = (row) => {
+    deductForm.value.address = row.address
+    deductForm.value.amount = ''
+    deductDialogVisible.value = true
+}
+
+const handleDeduct = async () => {
+    if (!deductForm.value.amount) {
+        ElMessage.warning('请输入金额')
+        return
+    }
+    deductLoading.value = true
+    try {
+        const res = await axios.post(`${API_BASE_URL}/api/admin/deduct-fund`, {
+            address: deductForm.value.address,
+            amount: deductForm.value.amount
+        })
+        if (res.data.success) {
+            ElMessage.success(`扣除成功，新余额: ${parseFloat(res.data.newBalance).toFixed(4)} ETH`)
+            deductDialogVisible.value = false
+            fetchAuthorizedNodes() // 刷新列表
+        }
+    } catch (error) {
+        console.error(error)
+        ElMessage.error('扣除失败: ' + (error.response?.data?.error || error.message))
+    } finally {
+        deductLoading.value = false
+    }
 }
 
 const revokeAuthorization = async (address) => {
@@ -176,8 +266,22 @@ const authorizeWallet = async () => {
   }
 }
 
+// 水龙头余额
+const faucetBalance = ref(null)
+const fetchFaucetBalance = async () => {
+    try {
+        const res = await axios.get(`${API_BASE_URL}/api/admin/faucet-balance`)
+        if (res.data.success) {
+            faucetBalance.value = res.data.balance
+        }
+    } catch (e) {
+        console.error("Failed to fetch faucet balance", e)
+    }
+}
+
 onMounted(() => {
   fetchAuthorizedNodes()
+  fetchFaucetBalance()
 })
 
 // 资金表单
@@ -203,6 +307,8 @@ const fundWallet = async () => {
     if (res.data.success) {
       ElMessage.success(`发送成功! 交易哈希: ${res.data.txHash}`)
       fundForm.value.address = ''
+      fetchFaucetBalance() // 刷新余额
+      fetchAuthorizedNodes() // 刷新列表(因为接收方余额变了)
     }
   } catch (error) {
     console.error(error)
@@ -217,6 +323,22 @@ const fundWallet = async () => {
 .account-manager {
   padding: 20px;
 }
+.box-card {
+  height: 100%; /* 确保卡片高度填满列 */
+  display: flex;
+  flex-direction: column;
+}
+/* 让卡片内容区域自动填充剩余空间 */
+:deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -226,5 +348,6 @@ const fundWallet = async () => {
   color: #666;
   font-size: 14px;
   margin-bottom: 20px;
+  min-height: 40px; /* 统一描述区域高度，防止文字长度不同导致错位 */
 }
 </style>

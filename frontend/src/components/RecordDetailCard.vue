@@ -24,7 +24,7 @@
               {{ Number(record.status) === 1 ? '已放行 (Released)' : '待处理 (Pending)' }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="飞机号">{{ record.aircraftRegNo }}</el-descriptions-item>
+          <el-descriptions-item label="注册号">{{ record.aircraftRegNo }}</el-descriptions-item>
           <el-descriptions-item label="机型">{{ record.aircraftType }}</el-descriptions-item>
           <el-descriptions-item label="版次">{{ record.revision }}</el-descriptions-item>
           <el-descriptions-item label="ATA章节">{{ record.ataCode }}</el-descriptions-item>

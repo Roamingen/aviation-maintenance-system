@@ -39,7 +39,7 @@ app.get('/api/record/:recordId', async (req, res) => {
     }
 });
 
-// 3. 查询：根据飞机号获取所有 Record ID
+// 3. 查询：根据注册号获取所有 Record ID
 app.get('/api/aircraft/:regNo', async (req, res) => {
     try {
         const { regNo } = req.params;
@@ -135,7 +135,7 @@ app.post('/api/record', async (req, res) => {
         // 生成 Record ID (Hash)
         // 使用 ethers.id (keccak256) 生成
         // 这里的 jobCardNo 已经不再是用户输入的工卡号，而是我们即将生成的唯一标识
-        // 为了生成唯一标识，我们使用 飞机号 + 时间戳 + 随机数
+        // 为了生成唯一标识，我们使用 注册号 + 时间戳 + 随机数
         const uniqueString = `${recordData.aircraftRegNo}-${Date.now()}-${Math.random()}`;
         const hashId = ethers.id(uniqueString);
         
@@ -189,7 +189,7 @@ app.post('/api/record', async (req, res) => {
         }
 
         // 调用合约写入函数
-        const tx = await contract.addRecord(recordData);
+        const tx = await contract.addRecord(recordData, { gasPrice: 0 });
         
         const receipt = await tx.wait();
         
@@ -210,13 +210,20 @@ app.post('/api/record', async (req, res) => {
 // 6. 授权钱包 (Admin)
 app.post('/api/admin/authorize', async (req, res) => {
     try {
-        const { address } = req.body;
+        let { address } = req.body;
         if (!address) {
             return res.status(400).json({ success: false, error: "Address is required" });
         }
+
+        address = address.trim();
+        try {
+            address = ethers.getAddress(address);
+        } catch (e) {
+            return res.status(400).json({ success: false, error: "Invalid address format" });
+        }
         
         console.log(`Authorizing wallet: ${address}`);
-        const tx = await contract.setNodeAuthorization(address, true);
+        const tx = await contract.setNodeAuthorization(address, true, { gasPrice: 0 });
         await tx.wait();
         
         res.json({ success: true, message: `Wallet ${address} authorized successfully`, txHash: tx.hash });
@@ -229,9 +236,17 @@ app.post('/api/admin/authorize', async (req, res) => {
 // 7. 发送 ETH (Admin - Faucet)
 app.post('/api/admin/fund', async (req, res) => {
     try {
-        const { address, amount } = req.body;
+        let { address, amount } = req.body;
         if (!address) {
             return res.status(400).json({ success: false, error: "Address is required" });
+        }
+
+        // 清理地址格式，防止 ethers 尝试 ENS 解析
+        address = address.trim();
+        try {
+            address = ethers.getAddress(address);
+        } catch (e) {
+            return res.status(400).json({ success: false, error: "Invalid address format" });
         }
         
         const ethAmount = amount || "1.0";
@@ -243,7 +258,8 @@ app.post('/api/admin/fund', async (req, res) => {
         
         const tx = await wallet.sendTransaction({
             to: address,
-            value: ethers.parseEther(ethAmount)
+            value: ethers.parseEther(ethAmount),
+            gasPrice: 0
         });
         await tx.wait();
         
@@ -254,12 +270,40 @@ app.post('/api/admin/fund', async (req, res) => {
     }
 });
 
+// 7.5 获取水龙头余额 (Admin)
+app.get('/api/admin/faucet-balance', async (req, res) => {
+    try {
+        const { wallet } = require('./config');
+        const provider = wallet.provider;
+        const balance = await provider.getBalance(wallet.address);
+        res.json({ success: true, balance: ethers.formatEther(balance), address: wallet.address });
+    } catch (error) {
+        console.error("Error fetching faucet balance:", error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
 // 8. 获取所有授权节点 (Admin)
 app.get('/api/admin/authorized-nodes', async (req, res) => {
     try {
         const nodes = await contract.getAuthorizedNodes();
         // nodes is likely a Proxy or Result, convert it
-        const nodeList = Array.from(nodes);
+        const rawList = Array.from(nodes);
+        
+        // 获取余额
+        const provider = contract.runner.provider;
+        const nodeList = await Promise.all(rawList.map(async (addr) => {
+            try {
+                const bal = await provider.getBalance(addr);
+                return {
+                    address: addr,
+                    balance: ethers.formatEther(bal)
+                };
+            } catch (e) {
+                return { address: addr, balance: "Error" };
+            }
+        }));
+
         res.json({ success: true, data: nodeList });
     } catch (error) {
         console.error("Error fetching authorized nodes:", error);
@@ -267,16 +311,62 @@ app.get('/api/admin/authorized-nodes', async (req, res) => {
     }
 });
 
+// 8.5 扣除资金 (Admin - Hardhat Only)
+app.post('/api/admin/deduct-fund', async (req, res) => {
+    try {
+        const { address, amount } = req.body;
+        if (!address || !amount) {
+            return res.status(400).json({ success: false, error: "Address and amount are required" });
+        }
+
+        const provider = contract.runner.provider;
+        const currentBal = await provider.getBalance(address);
+        const deductBig = ethers.parseEther(amount.toString());
+
+        if (currentBal < deductBig) {
+             return res.status(400).json({ success: false, error: "Insufficient funds" });
+        }
+
+        const newBal = currentBal - deductBig;
+        // Convert to hex string for JSON-RPC (remove 0x prefix if present then add it back, or just toString(16))
+        const newBalHex = "0x" + newBal.toString(16);
+
+        // hardhat_setBalance expects address and hex balance
+        await provider.send("hardhat_setBalance", [address, newBalHex]);
+
+        // 将扣除的资金“归还”给水龙头 (Account #0)
+        const faucetWallet = contract.runner;
+        const faucetAddress = faucetWallet.address;
+        const currentFaucetBal = await provider.getBalance(faucetAddress);
+        const newFaucetBal = currentFaucetBal + deductBig;
+        const newFaucetBalHex = "0x" + newFaucetBal.toString(16);
+        
+        await provider.send("hardhat_setBalance", [faucetAddress, newFaucetBalHex]);
+
+        res.json({ success: true, newBalance: ethers.formatEther(newBal) });
+    } catch (error) {
+        console.error("Deduct fund error:", error);
+        res.status(500).json({ success: false, error: error.reason || error.message });
+    }
+});
+
 // 9. 取消授权 (Admin)
 app.post('/api/admin/revoke', async (req, res) => {
     try {
-        const { address } = req.body;
+        let { address } = req.body;
         if (!address) {
             return res.status(400).json({ success: false, error: "Address is required" });
         }
+
+        address = address.trim();
+        try {
+            address = ethers.getAddress(address);
+        } catch (e) {
+            return res.status(400).json({ success: false, error: "Invalid address format" });
+        }
         
         console.log(`Revoking authorization for wallet: ${address}`);
-        const tx = await contract.setNodeAuthorization(address, false);
+        const tx = await contract.setNodeAuthorization(address, false, { gasPrice: 0 });
         await tx.wait();
         
         res.json({ success: true, message: `Wallet ${address} authorization revoked`, txHash: tx.hash });
@@ -297,25 +387,28 @@ function convertBigIntToString(obj) {
     // 尝试将 Ethers Result 转换为普通对象
     if (typeof obj.toObject === 'function') {
         try {
+            // 尝试转换为对象
             const converted = obj.toObject();
-            // 检查转换后的对象是否有效
-            // 如果是数组类型的 Result (如 PeerCheckSignature[])，toObject() 可能会返回 { _: ... } 或空对象
-            // 这种情况下我们应该把它当作数组处理
+            
+            // 如果转换成功且不是数组，递归处理
             if (converted && typeof converted === 'object' && !Array.isArray(converted)) {
+                // 检查是否有无效键 (如 '_')，这通常意味着它其实是一个数组或元组
                 const keys = Object.keys(converted);
                 const hasInvalidKeys = keys.some(k => k === '_');
-                // 如果包含无效键 '_'，或者转换为空对象但原对象是数组且有长度，说明转换不完全，应视为数组
-                if (hasInvalidKeys || (keys.length === 0 && obj.length > 0)) {
+                
+                if (hasInvalidKeys) {
+                    // 如果有无效键，说明它可能是个未命名的元组，应该当作数组处理
                     return Array.from(obj).map(convertBigIntToString);
                 }
-                // 否则视为结构体
-                return convertBigIntToString(converted);
-            }
-            // 如果 toObject 直接返回数组 (不太常见但可能)
-            if (Array.isArray(converted)) {
                 return convertBigIntToString(converted);
             }
         } catch (e) {
+            // 如果 toObject() 抛出 "value at index 0 unnamed" 错误
+            // 说明这是一个未命名的数组/元组 (例如 string[] 或 struct[])
+            // 这种情况下，我们应该直接把它当作数组来遍历
+            if (e.code === 'UNSUPPORTED_OPERATION' || e.message.includes('unnamed')) {
+                return Array.from(obj).map(convertBigIntToString);
+            }
             console.warn("Failed to convert Result to object:", e);
         }
     }
