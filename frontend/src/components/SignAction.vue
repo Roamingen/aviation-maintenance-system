@@ -157,7 +157,7 @@ const canSignPeerCheck = computed(() => {
   // Status must be Pending (0)
   if (props.recordStatus !== 0) return false
   if (!walletState.address) return false
-  if (!isAuthorizedNode.value) return false
+  if (!walletState.isAuthorized) return false
   
   const currentAddr = walletState.address.toLowerCase()
 
@@ -179,7 +179,7 @@ const canSignPeerCheck = computed(() => {
 const canSignPeerCheckReason = computed(() => {
   if (props.recordStatus !== 0) return "记录已放行"
   if (!walletState.address) return "未连接钱包"
-  if (!isAuthorizedNode.value) return "账户未授权"
+  if (!walletState.isAuthorized) return "账户未授权"
   
   const currentAddr = walletState.address.toLowerCase()
 
@@ -198,7 +198,7 @@ const canSignPeerCheckReason = computed(() => {
 const canSignRII = computed(() => {
   // Status must be Pending (0)
   if (props.recordStatus !== 0) return false
-  if (!isAuthorizedNode.value) return false
+  if (!walletState.isAuthorized) return false
   // Only if RII is required
   if (!props.isRII) return false
 
@@ -210,7 +210,7 @@ const canSignRII = computed(() => {
 const canSignRelease = computed(() => {
   // Status must be Pending (0)
   if (props.recordStatus !== 0) return false
-  if (!isAuthorizedNode.value) return false
+  if (!walletState.isAuthorized) return false
   
   // If RII is required, it must be signed first
   if (props.isRII) {

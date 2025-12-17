@@ -85,8 +85,10 @@
           <el-descriptions-item label="互检人员 (Peer Check)" :span="2">
             <div v-if="record.signatures?.peerChecks && record.signatures.peerChecks.length > 0">
                 <div v-for="(check, idx) in record.signatures.peerChecks" :key="idx" style="margin-bottom: 8px; border-bottom: 1px dashed #eee; padding-bottom: 4px;">
-                    {{ check.name }} (ID: {{ check.id }})
-                    <div style="font-size: 0.8em; color: #999;">{{ check.inspector }} <span style="margin-left: 10px;">{{ formatTimestamp(check.time) }}</span></div>
+                    <template v-if="check">
+                        {{ check.name }} (ID: {{ check.id }})
+                        <div style="font-size: 0.8em; color: #999;">{{ check.inspector }} <span style="margin-left: 10px;">{{ formatTimestamp(check.time) }}</span></div>
+                    </template>
                 </div>
             </div>
             <div v-else>

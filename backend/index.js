@@ -384,37 +384,33 @@ function convertBigIntToString(obj) {
         return obj.toString();
     }
     
-    // 尝试将 Ethers Result 转换为普通对象
-    if (typeof obj.toObject === 'function') {
-        try {
-            // 尝试转换为对象
-            const converted = obj.toObject();
-            
-            // 如果转换成功且不是数组，递归处理
-            if (converted && typeof converted === 'object' && !Array.isArray(converted)) {
-                // 检查是否有无效键 (如 '_')，这通常意味着它其实是一个数组或元组
-                const keys = Object.keys(converted);
-                const hasInvalidKeys = keys.some(k => k === '_');
-                
-                if (hasInvalidKeys) {
-                    // 如果有无效键，说明它可能是个未命名的元组，应该当作数组处理
-                    return Array.from(obj).map(convertBigIntToString);
+    // 优先处理数组，因为 Ethers v6 Result 也是数组
+    if (Array.isArray(obj)) {
+        // 检查是否是 Ethers Result 且具有命名属性
+        if (typeof obj.toObject === 'function') {
+            try {
+                const converted = obj.toObject();
+                // 如果转换出有意义的键，说明是结构体 (有命名属性)
+                // 注意：空结构体在 Solidity 中不常见，但如果有命名键，keys 长度应大于 0
+                if (Object.keys(converted).length > 0) {
+                    // 递归处理转换后的对象
+                    return convertBigIntToString(converted);
                 }
-                return convertBigIntToString(converted);
+            } catch (e) {
+                // 忽略错误，当作普通数组处理
             }
-        } catch (e) {
-            // 如果 toObject() 抛出 "value at index 0 unnamed" 错误
-            // 说明这是一个未命名的数组/元组 (例如 string[] 或 struct[])
-            // 这种情况下，我们应该直接把它当作数组来遍历
-            if (e.code === 'UNSUPPORTED_OPERATION' || e.message.includes('unnamed')) {
-                return Array.from(obj).map(convertBigIntToString);
-            }
-            console.warn("Failed to convert Result to object:", e);
         }
+        // 否则当作普通数组处理 (包括无命名键的 Result 数组)
+        return obj.map(convertBigIntToString);
     }
     
-    if (Array.isArray(obj)) {
-        return obj.map(convertBigIntToString);
+    // 处理非数组的 Result (为了兼容旧版本或特殊情况)
+    if (typeof obj.toObject === 'function') {
+        try {
+            return convertBigIntToString(obj.toObject());
+        } catch (e) {
+            // 忽略
+        }
     }
     
     if (typeof obj === 'object') {
