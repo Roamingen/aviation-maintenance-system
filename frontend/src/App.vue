@@ -1,6 +1,10 @@
 <template>
   <div class="app-container">
-    <el-container class="layout-container">
+    <!-- Login View -->
+    <Login v-if="!walletState.isConnected && !walletState.isGuest" />
+
+    <!-- Main App Layout -->
+    <el-container v-else class="layout-container">
       <el-aside width="220px" class="aside">
         <div class="logo-area">
           <img :src="planeUrl" class="logo-icon" alt="Logo" />
@@ -18,11 +22,15 @@
             <el-icon><Search /></el-icon>
             <span>查询信息</span>
           </el-menu-item>
-          <el-menu-item index="mechanic">
+          
+          <!-- Only show for Authorized Users -->
+          <el-menu-item index="mechanic" v-if="walletState.isAuthorized">
             <el-icon><Edit /></el-icon>
             <span>录入信息</span>
           </el-menu-item>
-          <el-menu-item index="account">
+          
+          <!-- Only show for Authorized Users -->
+          <el-menu-item index="account" v-if="walletState.isAuthorized">
             <el-icon><Setting /></el-icon>
             <span>账户管理</span>
           </el-menu-item>
@@ -33,28 +41,25 @@
         <el-header class="header">
           <div class="header-title">基于区块链的民航飞机检修记录存证系统</div>
           <div class="header-right">
-            <el-button 
-              v-if="!walletState.isConnected" 
-              type="primary" 
-              @click="connectWallet"
-            >
-              连接钱包
-            </el-button>
-            <el-button 
-              v-else 
-              type="danger" 
-              @click="disconnectWallet"
-            >
-              注销 ({{ shortAddress }})
-            </el-button>
+            <div v-if="walletState.isGuest" style="display: flex; align-items: center;">
+                <el-tag type="info" style="margin-right: 10px;">访客模式 (只读)</el-tag>
+                <el-button type="danger" @click="logout">退出登录</el-button>
+            </div>
+            <div v-else style="display: flex; align-items: center;">
+                <el-tag v-if="walletState.isAuthorized" type="success" style="margin-right: 10px;">已授权</el-tag>
+                <el-tag v-else type="warning" style="margin-right: 10px;">未授权</el-tag>
+                <el-button type="danger" @click="disconnectWallet">
+                  注销 ({{ shortAddress }})
+                </el-button>
+            </div>
           </div>
         </el-header>
         
         <el-main class="main-content">
           <div class="content-wrapper">
             <RecordSearch v-if="currentView === 'search'" />
-            <RecordForm v-if="currentView === 'mechanic'" />
-            <AccountManager v-if="currentView === 'account'" />
+            <RecordForm v-if="currentView === 'mechanic' && walletState.isAuthorized" />
+            <AccountManager v-if="currentView === 'account' && walletState.isAuthorized" />
           </div>
           <div class="footer">
             Blockchain Aviation Maintenance System © 2025
@@ -66,18 +71,28 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { Search, Edit, List, Setting } from '@element-plus/icons-vue'
 import { ethers } from 'ethers'
 import { ElMessage } from 'element-plus'
 import RecordSearch from './components/RecordSearch.vue'
 import RecordForm from './components/RecordForm.vue'
 import AccountManager from './components/AccountManager.vue'
-import { walletState, setWallet } from './walletState'
+import Login from './components/Login.vue'
+import { walletState, setWallet, setGuest, setAuthorized } from './walletState'
 import logoUrl from './assets/logo.svg'
 import planeUrl from './assets/plane.svg'
+import axios from 'axios'
 
 const currentView = ref('search')
+
+// Watch for role changes to reset view
+watch(() => walletState.isGuest, (newVal) => {
+    if (newVal) currentView.value = 'search'
+})
+watch(() => walletState.isAuthorized, (newVal) => {
+    if (!newVal && !walletState.isGuest) currentView.value = 'search'
+})
 
 const handleSelect = (key) => {
   currentView.value = key
@@ -88,25 +103,31 @@ const shortAddress = computed(() => {
   return `${walletState.address.slice(0, 6)}...${walletState.address.slice(-4)}`
 })
 
-const connectWallet = async () => {
-  if (typeof window.ethereum !== 'undefined') {
-    try {
-      const provider = new ethers.BrowserProvider(window.ethereum)
-      const accounts = await provider.send("eth_requestAccounts", [])
-      setWallet(accounts[0])
-      ElMessage.success("钱包连接成功")
-    } catch (error) {
-      console.error("Wallet connection error:", error);
-      ElMessage.error("连接钱包失败: " + (error.message || "未知错误"))
-    }
-  } else {
-    ElMessage.warning("未检测到 MetaMask。请确保插件已启用。")
-  }
-}
-
+// Moved connect logic to Login.vue, but kept disconnect here
 const disconnectWallet = () => {
   setWallet('')
+  setAuthorized(false)
   ElMessage.info("已断开连接")
+}
+
+const logout = () => {
+    setGuest(false)
+    setWallet('')
+    setAuthorized(false)
+}
+
+// Auto-check auth on mount if already connected
+const checkAuth = async (address) => {
+    try {
+        const res = await axios.get('http://localhost:3000/api/admin/authorized-nodes')
+        if (res.data.success) {
+            const nodes = res.data.data
+            const isAuth = nodes.some(n => n.address.toLowerCase() === address.toLowerCase())
+            setAuthorized(isAuth)
+        }
+    } catch (e) {
+        console.error("Auth check failed", e)
+    }
 }
 
 onMounted(async () => {
@@ -116,14 +137,17 @@ onMounted(async () => {
       const accounts = await provider.listAccounts()
       if (accounts.length > 0) {
         setWallet(accounts[0].address)
+        checkAuth(accounts[0].address)
       }
       
       // Listen for account changes
       window.ethereum.on('accountsChanged', (accounts) => {
         if (accounts.length > 0) {
           setWallet(accounts[0])
+          checkAuth(accounts[0])
         } else {
           setWallet('')
+          setAuthorized(false)
         }
       })
     } catch (e) {
@@ -161,7 +185,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #2b3649;
+  /* background-color: #409EFF; */
   color: #fff;
   font-weight: bold;
   font-size: 18px;

@@ -3,8 +3,23 @@ import { ethers } from 'ethers'
 
 export const walletState = reactive({
   address: '',
-  isConnected: false
+  isConnected: false,
+  isGuest: false,
+  isAuthorized: false
 })
+
+export const setGuest = (isGuest) => {
+    walletState.isGuest = isGuest
+    if (isGuest) {
+        walletState.address = ''
+        walletState.isConnected = false
+        walletState.isAuthorized = false
+    }
+}
+
+export const setAuthorized = (isAuth) => {
+    walletState.isAuthorized = isAuth
+}
 
 export const setWallet = (address) => {
   // 强制转换为 Checksum 地址 (混合大小写)
@@ -16,4 +31,7 @@ export const setWallet = (address) => {
     walletState.address = address || ''
   }
   walletState.isConnected = !!address
+  if (walletState.isConnected) {
+      walletState.isGuest = false
+  }
 }

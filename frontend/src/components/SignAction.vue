@@ -1,13 +1,16 @@
 <template>
   <div class="sign-action">
-    <div v-if="!walletState.isConnected">
+    <div v-if="walletState.isGuest">
+       <el-alert title="访客模式：仅查看权限" type="info" :closable="false" show-icon />
+    </div>
+    <div v-else-if="!walletState.isConnected">
       <el-alert title="您当前尚未连接钱包，无法进行签名操作" type="warning" :closable="false" show-icon />
     </div>
     <div v-else>
       <p>当前钱包: {{ walletState.address }}</p>
       
       <!-- 未授权提示 -->
-      <div v-if="!isAuthorizedNode">
+      <div v-if="!walletState.isAuthorized">
         <el-alert 
           title="当前账户未获得授权" 
           description="您当前的钱包地址不在授权节点列表中，无法进行任何签名操作。请联系管理员进行授权。"
@@ -86,7 +89,7 @@ const loadingPeerCheck = ref(false)
 const loadingRII = ref(false)
 const loadingRelease = ref(false)
 const contractConfig = ref(null)
-const isAuthorizedNode = ref(false)
+// const isAuthorizedNode = ref(false) // Use global walletState.isAuthorized
 
 // connectWallet moved to App.vue
 
@@ -108,6 +111,8 @@ const getContract = async () => {
     return new ethers.Contract(contractConfig.value.address, contractConfig.value.abi, signer)
 }
 
+// Authorization check moved to App.vue / Login.vue
+/*
 const checkAuthorization = async () => {
     if (!walletState.address) {
         isAuthorizedNode.value = false
@@ -142,17 +147,10 @@ watch(() => walletState.address, (newVal) => {
         isAuthorizedNode.value = false
     }
 }, { immediate: true })
+*/
 
 onMounted(() => {
   fetchConfig()
-  // Check if already connected
-  // Add a small delay to ensure window.ethereum is injected
-  setTimeout(() => {
-      if(window.ethereum && window.ethereum.selectedAddress) {
-          // walletAddress.value = window.ethereum.selectedAddress // handled by App.vue
-          checkAuthorization()
-      }
-  }, 500)
 })
 
 const canSignPeerCheck = computed(() => {
